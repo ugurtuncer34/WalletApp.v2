@@ -12,4 +12,7 @@ public class CreateTransactionRequest
     public Guid CurrencyId { get; set; }
     public Guid? MerchantId { get; set; }
     public Guid CountryId { get; set; }
+
+    // Tag Id lists
+    public List<Guid> TagIds { get; set; } = new();
 }
