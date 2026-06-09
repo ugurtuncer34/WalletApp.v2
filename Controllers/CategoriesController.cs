@@ -33,6 +33,11 @@ public class CategoriesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Category>> PostCategory(Category category)
     {
+        var exists = await _context.Categories.AnyAsync(c => c.Name == category.Name);
+        if (exists)
+        {
+            return BadRequest($"Error: '{category.Name}' already exists!");
+        }
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
