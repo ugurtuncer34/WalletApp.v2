@@ -54,10 +54,66 @@ public class TransactionsController : ControllerBase
             return transactions;
     }
 
+    [HttpGet("{id}")]
+    public async Task<ActionResult<TransactionResponse>> GetTransaction(Guid id)
+    {
+        var transaction = await _context.Transactions
+            .Where(t => t.Id == id)
+            .Select(t => new TransactionResponse
+            {
+                Id = t.Id,
+                Date = t.TransactionDate,
+                Amount = t.Amount,
+                Description = t.Description,
+                CategoryName = t.Category.Name,
+                CategoryIcon = t.Category.Icon,
+                CurrencySymbol = t.Currency.Symbol,
+                CountryName = t.Country.Name,
+                Tags = t.TransactionTags.Select(tt => new TagResponse
+                {
+                    Name = tt.Tag.Name,
+                    Color = tt.Tag.Color ?? "#cccccc"
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
+        
+        if(transaction is null)
+        {
+            return NotFound();
+        }
+        return transaction;
+    }
+
     [HttpPost]
     public async Task<ActionResult<Transaction>> PostTransaction(CreateTransactionRequest request)
     {
-        // Better to valide IDs here, like category or country
+        // Validating
+        if(!await _context.Categories.AnyAsync(c => c.Id == request.CategoryId))
+        {
+            return BadRequest($"Invalid Category ID: {request.CategoryId}");
+        }
+        if(!await _context.Currencies.AnyAsync(c => c.Id == request.CurrencyId))
+        {
+            return BadRequest($"Invalid Currency ID: {request.CurrencyId}");
+        }
+        if(!await _context.Countries.AnyAsync(c => c.Id == request.CountryId))
+        {
+            return BadRequest($"Invalid Country ID: {request.CountryId}");
+        }
+        // Merchant is optional so check if it has value
+        if(request.MerchantId.HasValue && !await _context.Merchants.AnyAsync(m => m.Id == request.MerchantId.Value))
+        {
+            return BadRequest($"Invalid Merchant ID: {request.MerchantId}");
+        }
+        if(request.TagIds != null && request.TagIds.Any())
+        {
+            var existingTagsCount = await _context.Tags
+                .CountAsync(t => request.TagIds.Contains(t.Id));
+            if(existingTagsCount != request.TagIds.Count)
+            {
+                return BadRequest("Some tags could not be found in the system!");
+            }
+        }
 
         // Map DTO to Entity
         var transaction = new Transaction
@@ -95,7 +151,7 @@ public class TransactionsController : ControllerBase
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
         // need a getById for below, will do later
-        return CreatedAtAction(nameof(GetTransactions), new { id = transaction.Id }, transaction);
+        return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
     }
 
     [HttpDelete("{id}")]
