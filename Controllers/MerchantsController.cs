@@ -19,7 +19,7 @@ public class MerchantsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Merchant>>> GetMerchants()
     {
-        return await _context.Merchants.ToListAsync();
+        return await _context.Merchants.Include(t => t.DefaultCategory).ToListAsync();
     }
 
     [HttpGet("{id}")]
