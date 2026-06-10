@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using WalletApp.Data;
 using WalletApp.Entities;
 using WalletApp.Dtos;
@@ -11,6 +12,7 @@ namespace WalletApp.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
     public TransactionsController(AppDbContext context)
     {
         _context = context;
@@ -28,7 +30,8 @@ public class TransactionsController : ControllerBase
                 Amount = t.Amount,
                 Description = t.Description,
                 CategoryName = t.Category != null ? t.Category.Name : "OTHER",
-                CategoryIcon = t.Category != null ? t.Category.Icon : "🌀"
+                CategoryIcon = t.Category != null ? t.Category.Icon : "🌀",
+                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
             })
             .ToListAsync();
 
@@ -47,12 +50,13 @@ public class TransactionsController : ControllerBase
                 Amount = t.Amount,
                 Description = t.Description,
                 CategoryName = t.Category != null ? t.Category.Name : "OTHER",
-                CategoryIcon = t.Category != null ? t.Category.Icon : "🌀"
+                CategoryIcon = t.Category != null ? t.Category.Icon : "🌀",
+                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
             })
             .FirstOrDefaultAsync();
 
         if (transaction is null) return NotFound();
-        
+
         return transaction;
     }
 
@@ -91,7 +95,7 @@ public class TransactionsController : ControllerBase
 
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
-        
+
         return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
     }
 
@@ -106,5 +110,74 @@ public class TransactionsController : ControllerBase
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("quick-add")]
+    public async Task<ActionResult<TransactionResponse>> QuickAddTransaction([FromBody] QuickAddRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+        {
+            return BadRequest("Please enter an expense word. Ex: '150 Market'");
+        }
+
+        var parts = request.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return BadRequest("Please enter a valid text.");
+
+        if (!decimal.TryParse(parts[0], out decimal amount))
+        {
+            return BadRequest("First word should be a valid amount. Ex: '150 Market'");
+        }
+
+        var description = parts.Length > 1 ? string.Join(" ", parts.Skip(1)).Trim() : "Not declared.";
+        var descLower = description.ToLower(_trCulture);
+
+        string targetCategoryName = "DİĞER";
+
+        if (descLower.Contains("fırın") || descLower.Contains("file") || descLower.Contains("şok") || descLower.Contains("market"))
+        {
+            targetCategoryName = "ALIŞVERİŞ";
+        }
+        else if (descLower.Contains("coffee") || descLower.Contains("told") || descLower.Contains("kahve"))
+        {
+            targetCategoryName = "KAHVE";
+        }
+
+        var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == targetCategoryName);
+        if (category is null)
+        {
+            category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == "DİĞER");
+        }
+        if (category is null) return BadRequest("No category found in the system.");
+
+        var allMerchants = await _context.Merchants.ToListAsync();
+
+        var matchedMerchant = allMerchants.FirstOrDefault(m => descLower.Contains(m.Name.ToLower(_trCulture)));
+
+        var transaction = new Transaction
+        {
+            Id = Guid.NewGuid(),
+            TransactionDate = DateTime.UtcNow,
+            Amount = amount,
+            Description = description,
+            CategoryId = category.Id,
+            MerchantId = matchedMerchant?.Id
+        };
+
+        _context.Transactions.Add(transaction);
+        await _context.SaveChangesAsync();
+
+        var response = new TransactionResponse
+        {
+            Id = transaction.Id,
+            Date = transaction.TransactionDate,
+            Amount = transaction.Amount,
+            Description = transaction.Description,
+            CategoryName = category.Name,
+            CategoryIcon = category.Icon,
+            MerchantName = matchedMerchant != null ? matchedMerchant.Name : string.Empty
+        };
+
+        return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, response);
+
     }
 }
