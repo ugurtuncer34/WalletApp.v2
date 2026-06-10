@@ -488,3 +488,6 @@ $RECYCLE.BIN/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Ignore seed data
+seedData.json

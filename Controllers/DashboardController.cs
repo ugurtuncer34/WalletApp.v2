@@ -20,7 +20,7 @@ public class DashboardController : ControllerBase
     {
         // 1- TotalExpense , sum every (amount * exchangeRate)
         var totalExpense = await _context.Transactions
-            .SumAsync(t => t.Amount * t.ExchangeRate);
+            .SumAsync(t => t.Amount);
 
         // 2- Last 5 transactions
         var recentTransactions = await _context.Transactions
@@ -31,8 +31,7 @@ public class DashboardController : ControllerBase
             {
                 Date = t.TransactionDate,
                 Description = t.Description ?? t.Category.Name,
-                Amount = t.Amount,
-                Currency = t.Currency.Symbol
+                Amount = t.Amount
             })
             .ToListAsync();
 
@@ -42,7 +41,7 @@ public class DashboardController : ControllerBase
             .Select(g => new
             {
                 CategoryName = g.Key,
-                TotalAmount = g.Sum(t => t.Amount * t.ExchangeRate)
+                TotalAmount = g.Sum(t => t.Amount)
             })
             .OrderByDescending(x => x.TotalAmount)
             .FirstOrDefaultAsync();
