@@ -1,0 +1,15 @@
+{
+    "GROCERIES": [
+        "market",
+        "bakery",
+        "amazon"
+    ],
+    "FUEL": [
+        "gas",
+        "shell"
+    ],
+    "COFFEE": [
+        "starbucks",
+        "coffee"
+    ]
+}

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Globalization;
+using System.Text.Json;
 using WalletApp.Data;
 using WalletApp.Dtos;
 using WalletApp.Entities;
@@ -104,13 +106,38 @@ public class TransactionService : ITransactionService
 
         string targetCategoryName = "DİĞER";
 
-        if (descLower.Contains("fırın") || descLower.Contains("file") || descLower.Contains("şok") || descLower.Contains("market"))
+        // Dynamic reading of rule engine json
+        try
         {
-            targetCategoryName = "ALIŞVERİŞ";
+            var rulesFilePath = "category-rules.json";
+            if (!File.Exists(rulesFilePath))
+            {
+                rulesFilePath = "category-rules.example.json";
+            }
+
+            if (File.Exists(rulesFilePath))
+            {
+                var jsonContent = await File.ReadAllTextAsync(rulesFilePath);
+
+                // Convert json to dictionary: Key = categoryName, Val = wordsArray
+                var categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
+
+                if(categoryRules != null)
+                {
+                    foreach(var rule in categoryRules)
+                    {
+                        if(rule.Value.Any(keyword => descLower.Contains(keyword.ToLower(_trCulture))))
+                        {
+                            targetCategoryName = rule.Key;
+                            break;
+                        }
+                    }
+                }
+            }
         }
-        else if (descLower.Contains("coffee") || descLower.Contains("told") || descLower.Contains("kahve"))
+        catch (Exception ex)
         {
-            targetCategoryName = "KAHVE";
+           Console.WriteLine($"Kural motoru çalıştırılamadı: {ex.Message}");
         }
 
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == targetCategoryName);

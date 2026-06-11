@@ -1,7 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using WalletApp.Data;
 using WalletApp.Entities;
 using WalletApp.Dtos;
 using WalletApp.Services;
@@ -53,7 +50,7 @@ public class TransactionsController : ControllerBase
     {
         var isDeleted = await _transactionService.DeleteTransactionAsync(id);
         if(!isDeleted) return NotFound();
-        
+
         return NoContent();
     }
 

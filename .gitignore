@@ -491,3 +491,6 @@ $RECYCLE.BIN/
 
 # Ignore seed data
 seedData.json
+
+# Special category rule engine
+category-rules.json
