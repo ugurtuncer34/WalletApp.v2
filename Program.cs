@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Data;
+using WalletApp.Middleware;
 using WalletApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +40,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseAuthorization();
 
