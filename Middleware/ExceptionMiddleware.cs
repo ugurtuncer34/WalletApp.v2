@@ -24,8 +24,8 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            // if throw exception, catch in the air
-            _logger.LogError(ex, "An unexpected error occured: {Message}", ex.Message);
+            // if throw exception, catch in the air. names will be detected by Serilog
+            _logger.LogError(ex, "An unexpected error occured. Path: {RequestPath}, Message: {ErrorMessage}", context.Request.Path, ex.Message);
             await HandleExceptionAsync(context, ex, _env);
         }
     }

@@ -1,10 +1,27 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using WalletApp.Data;
 using WalletApp.Middleware;
 using WalletApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    // .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    // .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        new Serilog.Formatting.Compact.CompactJsonFormatter(),
+        "Logs/walletapp-log-.json",
+        rollingInterval: RollingInterval.Day
+    )
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>

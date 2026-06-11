@@ -494,3 +494,6 @@ seedData.json
 
 # Special category rule engine
 category-rules.json
+
+# Serilog logs
+Logs/
