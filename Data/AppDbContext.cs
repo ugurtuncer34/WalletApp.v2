@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Country> Countries { get; set; }
     public DbSet<Merchant> Merchants { get; set; }
     public DbSet<TransactionTag> TransactionTags { get; set; }
+    public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) // special options
     {
@@ -23,7 +24,7 @@ public class AppDbContext : DbContext
         // Same tag cannot be added to a trx twice
         modelBuilder.Entity<TransactionTag>()
             .HasKey(tt => new { tt.TransactionId, tt.TagId });
-        
+
         // Declaring relations just in case
         modelBuilder.Entity<TransactionTag>()
             .HasOne(tt => tt.Transaction)
@@ -34,7 +35,7 @@ public class AppDbContext : DbContext
             .HasOne(tt => tt.Tag)
             .WithMany(t => t.TransactionTags)
             .HasForeignKey(tt => tt.TagId);
-        
+
         // Codes should be unique
         modelBuilder.Entity<Currency>()
             .HasIndex(c => c.Code)
