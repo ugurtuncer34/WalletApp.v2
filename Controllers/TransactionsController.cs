@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using WalletApp.Entities;
 using WalletApp.Dtos;
 using WalletApp.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WalletApp.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TransactionsController : ControllerBase
@@ -40,6 +42,15 @@ public class TransactionsController : ControllerBase
 
     }
 
+    [HttpPost("quick-add")]
+    public async Task<ActionResult<TransactionResponse>> QuickAddTransaction(QuickAddRequest request)
+    {
+
+        var response = await _transactionService.QuickAddTransactionAsync(request);
+        return CreatedAtAction(nameof(GetTransaction), new { id = response.Id }, response);
+
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTransaction(Guid id)
     {
@@ -47,14 +58,5 @@ public class TransactionsController : ControllerBase
         if (!isDeleted) return NotFound();
 
         return NoContent();
-    }
-
-    [HttpPost("quick-add")]
-    public async Task<ActionResult<TransactionResponse>> QuickAddTransaction([FromBody] QuickAddRequest request)
-    {
-
-        var response = await _transactionService.QuickAddTransactionAsync(request);
-        return CreatedAtAction(nameof(GetTransaction), new { id = response.Id }, response);
-
     }
 }
