@@ -28,8 +28,6 @@ public class TransactionsController : ControllerBase
     public async Task<ActionResult<TransactionResponse>> GetTransaction(Guid id)
     {
         var transaction = await _transactionService.GetTransactionByIdAsync(id);
-        if (transaction is null) return NotFound();
-
         return Ok(transaction);
     }
 
@@ -54,9 +52,7 @@ public class TransactionsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTransaction(Guid id)
     {
-        var isDeleted = await _transactionService.DeleteTransactionAsync(id);
-        if (!isDeleted) return NotFound();
-
+        await _transactionService.DeleteTransactionAsync(id);
         return NoContent();
     }
 }

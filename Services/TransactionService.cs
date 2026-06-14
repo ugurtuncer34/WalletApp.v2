@@ -35,9 +35,9 @@ public class TransactionService : ITransactionService
             .ToListAsync();
     }
 
-    public async Task<TransactionResponse?> GetTransactionByIdAsync(Guid id)
+    public async Task<TransactionResponse> GetTransactionByIdAsync(Guid id)
     {
-        return await _context.Transactions
+        var transaction = await _context.Transactions
             .Where(t => t.Id == id)
             .Select(t => new TransactionResponse
             {
@@ -50,6 +50,11 @@ public class TransactionService : ITransactionService
                 MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
             })
             .FirstOrDefaultAsync();
+
+        if(transaction is null)
+            throw new KeyNotFoundException($"Transaction not found. ID: {id}");
+        
+        return transaction;
     }
 
     public async Task<Transaction> CreateTransactionAsync(CreateTransactionRequest request)
@@ -58,7 +63,10 @@ public class TransactionService : ITransactionService
         if (request.CategoryId == null || request.CategoryId == Guid.Empty)
         {
             var defaultCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "DİĞER");
-            if (defaultCategory == null) throw new ArgumentException("Default category (OTHER) not found in database.");
+            
+            if (defaultCategory == null)
+                throw new ArgumentException("Default category (OTHER) not found in database.");
+            
             finalCategoryId = defaultCategory.Id;
         }
         else
@@ -94,7 +102,9 @@ public class TransactionService : ITransactionService
         }
 
         var parts = request.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) throw new ArgumentException("Lütfen geçerli bir metin girin.");
+        
+        if (parts.Length == 0)
+            throw new ArgumentException("Lütfen geçerli bir metin girin.");
 
         if (!decimal.TryParse(parts[0], out decimal amount))
         {
@@ -137,7 +147,7 @@ public class TransactionService : ITransactionService
         }
         catch (Exception ex)
         {
-           Console.WriteLine($"Kural motoru çalıştırılamadı: {ex.Message}");
+           Console.WriteLine($"Rule engine error: {ex.Message}");
         }
 
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == targetCategoryName);
@@ -145,7 +155,8 @@ public class TransactionService : ITransactionService
         {
             category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == "DİĞER");
         }
-        if (category is null) throw new ArgumentException("Sistemde kategori bulunamadı.");
+        if (category is null)
+            throw new ArgumentException("There is no category in the system.");
 
         var allMerchants = await _context.Merchants.ToListAsync();
         var matchedMerchant = allMerchants.FirstOrDefault(m => descLower.Contains(m.Name.ToLower(_trCulture)));
@@ -175,13 +186,13 @@ public class TransactionService : ITransactionService
         };
     }
 
-    public async Task<bool> DeleteTransactionAsync(Guid id)
+    public async Task DeleteTransactionAsync(Guid id)
     {
         var transaction = await _context.Transactions.FindAsync(id);
-        if (transaction is null) return false;
+        if (transaction is null)
+            throw new KeyNotFoundException($"Transaction not found. ID: {id}");
 
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
-        return true;
     }
 }
