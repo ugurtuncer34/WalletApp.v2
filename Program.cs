@@ -57,6 +57,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Swagger
