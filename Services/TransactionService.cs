@@ -18,10 +18,36 @@ public class TransactionService : ITransactionService
         _context = context;
     }
 
-    public async Task<IEnumerable<TransactionResponse>> GetTransactionsAsync()
+    public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
     {
-        return await _context.Transactions
+        var query = _context.Transactions.AsQueryable();
+
+        if (queryParams.CategoryId.HasValue)
+        {
+            query = query.Where(t => t.CategoryId == queryParams.CategoryId.Value);
+        }
+
+        if (queryParams.MerchantId.HasValue)
+        {
+            query = query.Where(t => t.MerchantId == queryParams.MerchantId.Value);
+        }
+
+        if (queryParams.StartDate.HasValue)
+        {
+            query = query.Where(t => t.TransactionDate >= queryParams.StartDate.Value);
+        }
+
+        if (queryParams.EndDate.HasValue)
+        {
+            query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value);
+        }
+    
+        var totalCount = await query.CountAsync();
+
+        var items = await query
             .OrderByDescending(t => t.TransactionDate)
+            .Skip((queryParams.PageNumber - 1) * queryParams.PageSize)
+            .Take(queryParams.PageSize)
             .Select(t => new TransactionResponse
             {
                 Id = t.Id,
@@ -33,6 +59,14 @@ public class TransactionService : ITransactionService
                 MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
             })
             .ToListAsync();
+        
+        return new PagedResult<TransactionResponse>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageNumber = queryParams.PageNumber,
+            PageSize = queryParams.PageSize
+        };
     }
 
     public async Task<TransactionResponse> GetTransactionByIdAsync(Guid id)

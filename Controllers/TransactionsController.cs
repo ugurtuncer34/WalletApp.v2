@@ -18,9 +18,9 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TransactionResponse>>> GetTransactions()
+    public async Task<ActionResult<IEnumerable<TransactionResponse>>> GetTransactions([FromQuery] TransactionQueryParameters queryParams)
     {
-        var transactions = await _transactionService.GetTransactionsAsync();
+        var transactions = await _transactionService.GetTransactionsAsync(queryParams);
         return Ok(transactions);
     }
 

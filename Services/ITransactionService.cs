@@ -5,7 +5,7 @@ namespace WalletApp.Services;
 
 public interface ITransactionService
 {
-    Task<IEnumerable<TransactionResponse>> GetTransactionsAsync();
+    Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams);
     Task<TransactionResponse> GetTransactionByIdAsync(Guid id);
     Task<Transaction> CreateTransactionAsync(CreateTransactionRequest request);
     Task<TransactionResponse> QuickAddTransactionAsync(QuickAddRequest request);
