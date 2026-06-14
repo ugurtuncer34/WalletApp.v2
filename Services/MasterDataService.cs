@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using WalletApp.Data;
 using WalletApp.Entities;
 
@@ -7,18 +9,40 @@ namespace WalletApp.Services;
 public class MasterDataService : IMasterDataService
 {
     private readonly AppDbContext _context;
+    private readonly IDistributedCache _cache;
+    private const string CategoriesCacheKey = "all_categories";
 
-    public MasterDataService(AppDbContext context)
+    public MasterDataService(AppDbContext context, IDistributedCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     // CATEGORIES
     public async Task<IEnumerable<Category>> GetCategoriesAsync()
     {
-        return await _context.Categories
+        // Check if the box is inside RAM
+        var cachedData = await _cache.GetStringAsync(CategoriesCacheKey);
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            // Found the box. Convert to c# object and return.
+            return JsonSerializer.Deserialize<IEnumerable<Category>>(cachedData) ?? Enumerable.Empty<Category>();
+        }
+
+        // If not inside RAM, go to DB
+        var categories = await _context.Categories
             .Include(c => c.ParentCategory)
             .ToListAsync();
+        
+        // Convert to JSON string for further requests
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+        };
+        var serilizedData = JsonSerializer.Serialize(categories);
+        await _cache.SetStringAsync(CategoriesCacheKey, serilizedData, cacheOptions);
+
+        return categories;
     }
 
     public async Task<Category> GetCategoryByIdAsync(Guid id)
@@ -37,6 +61,10 @@ public class MasterDataService : IMasterDataService
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
+
+        // Cache invalidation
+        await _cache.RemoveAsync(CategoriesCacheKey);
+
         return category;
     }
 
@@ -47,6 +75,9 @@ public class MasterDataService : IMasterDataService
         
         _context.Categories.Remove(category);
         await _context.SaveChangesAsync();
+
+        // Cache invalidation
+        await _cache.RemoveAsync(CategoriesCacheKey);
     }
 
     // MERCHANTS
