@@ -13,6 +13,7 @@ public class MasterDataService : IMasterDataService
         _context = context;
     }
 
+    // CATEGORIES
     public async Task<IEnumerable<Category>> GetCategoriesAsync()
     {
         return await _context.Categories
@@ -45,6 +46,43 @@ public class MasterDataService : IMasterDataService
         if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
         
         _context.Categories.Remove(category);
+        await _context.SaveChangesAsync();
+    }
+
+    // MERCHANTS
+    public async Task<IEnumerable<Merchant>> GetMerchantsAsync()
+    {
+        return await _context.Merchants
+            .Include(m => m.DefaultCategory)
+            .ToListAsync();
+    }
+
+    public async Task<Merchant> GetMerchantByIdAsync(Guid id)
+    {
+        var merchant = await _context.Merchants
+            .Include(m => m.DefaultCategory)
+            .FirstOrDefaultAsync();
+        
+        if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
+        return merchant;
+    }
+
+    public async Task<Merchant> CreateMerchantAsync(Merchant merchant)
+    {
+        var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == merchant.Name.ToLower());
+        if(exists) throw new ArgumentException($"'{merchant.Name}' already exists.");
+
+        _context.Merchants.Add(merchant);
+        await _context.SaveChangesAsync();
+        return merchant;
+    }
+
+    public async Task DeleteMerchantAsync(Guid id)
+    {
+        var merchant = await _context.Merchants.FindAsync(id);
+        if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
+
+        _context.Merchants.Remove(merchant);
         await _context.SaveChangesAsync();
     }
 }
