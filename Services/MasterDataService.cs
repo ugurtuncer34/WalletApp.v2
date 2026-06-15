@@ -11,6 +11,7 @@ public class MasterDataService : IMasterDataService
     private readonly AppDbContext _context;
     private readonly IDistributedCache _cache;
     private const string CategoriesCacheKey = "all_categories";
+    private const string MerchantsCacheKey = "all_merchants";
 
     public MasterDataService(AppDbContext context, IDistributedCache cache)
     {
@@ -83,9 +84,25 @@ public class MasterDataService : IMasterDataService
     // MERCHANTS
     public async Task<IEnumerable<Merchant>> GetMerchantsAsync()
     {
-        return await _context.Merchants
+        var cachedData = await _cache.GetStringAsync(MerchantsCacheKey);
+
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            return JsonSerializer.Deserialize<IEnumerable<Merchant>>(cachedData) ?? Enumerable.Empty<Merchant>();
+        }
+
+        var merchants = await _context.Merchants
             .Include(m => m.DefaultCategory)
             .ToListAsync();
+
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+        };
+        var serilizedData = JsonSerializer.Serialize(merchants);
+        await _cache.SetStringAsync(MerchantsCacheKey, serilizedData, cacheOptions);
+
+        return merchants;
     }
 
     public async Task<Merchant> GetMerchantByIdAsync(Guid id)
@@ -105,6 +122,9 @@ public class MasterDataService : IMasterDataService
 
         _context.Merchants.Add(merchant);
         await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync(MerchantsCacheKey);
+
         return merchant;
     }
 
@@ -115,5 +135,7 @@ public class MasterDataService : IMasterDataService
 
         _context.Merchants.Remove(merchant);
         await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync(MerchantsCacheKey);
     }
 }
