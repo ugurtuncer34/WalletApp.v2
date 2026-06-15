@@ -1,0 +1,36 @@
+services:
+  # 1. PostgreSQL
+  postgres-db:
+    image: postgres:latest
+    container_name: wallet_postgres
+    environment:
+      POSTGRES_USER: walletuser
+      POSTGRES_PASSWORD: MySecretPass123!
+      POSTGRES_DB: WalletDb
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432" # open port to public in order to connect with pgAdmin or DBeaver
+    volumes:
+      - pgdata:/var/lib/postgresql/data # write data to permanent memory so I don't lose it
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U walletuser -d WalletDb"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  # 2. .NET API
+  wallet-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wallet_api
+    ports:
+      - "5139:8080" # connect to docker port over frontend request port
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      postgres-db:
+        condition: service_healthy # do not start api unless db runs
+
+volumes:
+  pgdata: # Disc space for db
