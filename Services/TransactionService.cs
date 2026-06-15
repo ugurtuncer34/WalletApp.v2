@@ -93,6 +93,7 @@ public class TransactionService : ITransactionService
 
     public async Task<Transaction> CreateTransactionAsync(CreateTransactionRequest request)
     {
+        // Category (Mandatory)
         Guid finalCategoryId;
         if (request.CategoryId == null || request.CategoryId == Guid.Empty)
         {
@@ -113,13 +114,28 @@ public class TransactionService : ITransactionService
             throw new ArgumentException($"Invalid Category ID: {finalCategoryId}");
         }
 
+        // Merchant (Optional)
+        Guid? finalMerchantId = null;
+        if(request.MerchantId.HasValue && request.MerchantId.Value != Guid.Empty)
+        {
+            var merchantExists = await _context.Merchants.AnyAsync(m => m.Id == request.MerchantId.Value);
+
+            if (!merchantExists)
+            {
+                throw new ArgumentException($"Invalid Merchant ID: {request.MerchantId.Value}");
+            }
+
+            finalMerchantId = request.MerchantId.Value;
+        }
+
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
             TransactionDate = request.Date ?? DateTime.UtcNow,
             Amount = request.Amount,
             Description = request.Description,
-            CategoryId = finalCategoryId
+            CategoryId = finalCategoryId,
+            MerchantId = finalMerchantId
         };
 
         _context.Transactions.Add(transaction);
