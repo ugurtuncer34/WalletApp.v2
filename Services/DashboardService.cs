@@ -28,7 +28,7 @@ public class DashboardService : IDashboardService
 
         var response = new DashboardResponse
         {
-            TotalMonthlyExpense = monthTransactions.Sum(t => t.Amount),
+            TotalMonthlyExpense = monthTransactions.Sum(t => t.Amount * (t.ExchangeRate ?? 1m)),
 
             RecentTransactions = monthTransactions
                 .Take(5)
@@ -52,7 +52,7 @@ public class DashboardService : IDashboardService
                 .Select(g => new ChartDataDto
                 {
                     Label = g.Key,
-                    Value = g.Sum(t => t.Amount)
+                    Value = g.Sum(t => t.Amount * (t.ExchangeRate ?? 1m))
                 })
                 .OrderByDescending(x => x.Value)
                 .ToList(),
@@ -63,7 +63,7 @@ public class DashboardService : IDashboardService
                 .Select(g => new ChartDataDto
                 {
                     Label = g.Key,
-                    Value = g.Sum(t => t.Amount)
+                    Value = g.Sum(t => t.Amount * (t.ExchangeRate ?? 1m))
                 })
                 .OrderByDescending(x => x.Value)
                 .ToList(),
@@ -73,7 +73,7 @@ public class DashboardService : IDashboardService
                 .Select(g => new DailyTrendDto
                 {
                     Date = g.Key.ToString("yyyy-MM-dd"),
-                    Amount = g.Sum(t => t.Amount)
+                    Amount = g.Sum(t => t.Amount * (t.ExchangeRate ?? 1m))
                 })
                 .OrderBy(x => x.Date)
                 .ToList()
