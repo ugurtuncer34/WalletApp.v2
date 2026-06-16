@@ -45,6 +45,16 @@ public class TransactionService : ITransactionService
             query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value);
         }
 
+        if (queryParams.CountryId.HasValue)
+        {
+            query = query.Where(t => t.CountryId == queryParams.CountryId.Value);
+        }
+
+        if (queryParams.CurrencyId.HasValue)
+        {
+            query = query.Where(t => t.CurrencyId == queryParams.CurrencyId.Value);
+        }
+
         var totalCount = await query.CountAsync();
 
         var items = await query
@@ -57,9 +67,12 @@ public class TransactionService : ITransactionService
                 Date = t.TransactionDate,
                 Amount = t.Amount,
                 Description = t.Description,
+                ExchangeRate = t.ExchangeRate,
                 CategoryName = t.Category.Name,
                 CategoryIcon = t.Category.Icon,
-                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
+                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty,
+                CountryName = t.Country != null ? t.Country.Name : string.Empty,
+                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty
             })
             .ToListAsync();
 
@@ -82,9 +95,12 @@ public class TransactionService : ITransactionService
                 Date = t.TransactionDate,
                 Amount = t.Amount,
                 Description = t.Description,
+                ExchangeRate = t.ExchangeRate,
                 CategoryName = t.Category.Name,
                 CategoryIcon = t.Category.Icon,
-                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty
+                MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty,
+                CountryName = t.Country != null ? t.Country.Name : string.Empty,
+                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty
             })
             .FirstOrDefaultAsync();
 
@@ -131,14 +147,52 @@ public class TransactionService : ITransactionService
             finalMerchantId = request.MerchantId.Value;
         }
 
+        // Country (Optional, default TR)
+        Guid finalCountryId;
+        if(request.CountryId == null || request.CountryId == Guid.Empty)
+        {
+            var defaultCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
+            if(defaultCountry is null) throw new ArgumentException("Default country (TR) not found in database.");
+
+            finalCountryId = defaultCountry.Id;
+        }
+        else
+        {
+            finalCountryId = request.CountryId.Value;
+            if(!await _context.Countries.AnyAsync(c => c.Id == finalCountryId))
+                throw new ArgumentException($"Invalid Country ID: {finalCountryId}");
+        }
+
+        // Currency
+        Guid finalCurrencyId;
+        if(request.CurrencyId == null || request.CurrencyId == Guid.Empty)
+        {
+            var defaultCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
+            if(defaultCurrency is null) throw new ArgumentException("Default currency (TRY) not found in database.");
+
+            finalCurrencyId = defaultCurrency.Id;
+        }
+        else
+        {
+            finalCurrencyId = request.CurrencyId.Value;
+            if(!await _context.Currencies.AnyAsync(c => c.Id == finalCurrencyId))
+                throw new ArgumentException($"Invalid Country ID: {finalCurrencyId}");
+        }
+
+        // ExchangeRate
+        var finalExchangeRate = request.ExchangeRate ?? 1m;
+
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
             TransactionDate = request.Date ?? DateTime.UtcNow,
             Amount = request.Amount,
             Description = request.Description,
+            ExchangeRate = finalExchangeRate,
             CategoryId = finalCategoryId,
-            MerchantId = finalMerchantId
+            MerchantId = finalMerchantId,
+            CountryId = finalCountryId,
+            CurrencyId = finalCurrencyId
         };
 
         _context.Transactions.Add(transaction);
@@ -245,14 +299,21 @@ public class TransactionService : ITransactionService
         // Clear the description
         processingText = Regex.Replace(processingText, @"\s+", " ").Trim();
 
+        // Default settings
+        var defaultCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
+        var defaultCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
+
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
             TransactionDate = DateTime.UtcNow,
             Amount = amount,
             Description = string.IsNullOrWhiteSpace(processingText) ? null : processingText,
+            ExchangeRate = 1m,
             CategoryId = targetCategory.Id,
-            MerchantId = matchedMerchant?.Id
+            MerchantId = matchedMerchant?.Id,
+            CountryId = defaultCountry?.Id,
+            CurrencyId = defaultCurrency?.Id
         };
 
         _context.Transactions.Add(transaction);
@@ -264,85 +325,13 @@ public class TransactionService : ITransactionService
             Date = transaction.TransactionDate,
             Amount = transaction.Amount,
             Description = transaction.Description,
+            ExchangeRate = 1m,
             CategoryName = targetCategory.Name,
             CategoryIcon = targetCategory.Icon,
-            MerchantName = matchedMerchant?.Name ?? string.Empty
+            MerchantName = matchedMerchant?.Name ?? string.Empty,
+            CountryName = defaultCountry?.Name ?? string.Empty,
+            CurrencySymbol = defaultCurrency?.Symbol ?? string.Empty
         };
-
-        ////////////// ==== OLD ALGORITHM === //////////////
-        // var description = parts.Length > 1 ? string.Join(" ", parts.Skip(1)).Trim() : "Belirtilmedi.";
-        // var descLower = description.ToLower(_trCulture);
-
-        // string targetCategoryName = "DİĞER";
-
-        // // Dynamic reading of rule engine json
-        // try
-        // {
-        //     var rulesFilePath = "category-rules.json";
-        //     if (!File.Exists(rulesFilePath))
-        //     {
-        //         rulesFilePath = "category-rules.example.json";
-        //     }
-
-        //     if (File.Exists(rulesFilePath))
-        //     {
-        //         var jsonContent = await File.ReadAllTextAsync(rulesFilePath);
-
-        //         // Convert json to dictionary: Key = categoryName, Val = wordsArray
-        //         var categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
-
-        //         if(categoryRules != null)
-        //         {
-        //             foreach(var rule in categoryRules)
-        //             {
-        //                 if(rule.Value.Any(keyword => descLower.Contains(keyword.ToLower(_trCulture))))
-        //                 {
-        //                     targetCategoryName = rule.Key;
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // catch (Exception ex)
-        // {
-        //    Console.WriteLine($"Rule engine error: {ex.Message}");
-        // }
-
-        // var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == targetCategoryName);
-        // if (category is null)
-        // {
-        //     category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == "DİĞER");
-        // }
-        // if (category is null)
-        //     throw new ArgumentException("There is no category in the system.");
-
-        // var allMerchants = await _context.Merchants.ToListAsync();
-        // var matchedMerchant = allMerchants.FirstOrDefault(m => descLower.Contains(m.Name.ToLower(_trCulture)));
-
-        // var transaction = new Transaction
-        // {
-        //     Id = Guid.NewGuid(),
-        //     TransactionDate = DateTime.UtcNow,
-        //     Amount = amount,
-        //     Description = description,
-        //     CategoryId = category.Id,
-        //     MerchantId = matchedMerchant?.Id
-        // };
-
-        // _context.Transactions.Add(transaction);
-        // await _context.SaveChangesAsync();
-
-        // return new TransactionResponse
-        // {
-        //     Id = transaction.Id,
-        //     Date = transaction.TransactionDate,
-        //     Amount = transaction.Amount,
-        //     Description = transaction.Description,
-        //     CategoryName = category.Name,
-        //     CategoryIcon = category.Icon,
-        //     MerchantName = matchedMerchant != null ? matchedMerchant.Name : string.Empty
-        // };
     }
 
     public async Task DeleteTransactionAsync(Guid id)

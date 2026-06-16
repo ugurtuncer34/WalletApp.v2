@@ -8,6 +8,9 @@ public class TransactionQueryParameters
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 
+    public Guid? CountryId { get; set; }
+    public Guid? CurrencyId { get; set; }
+
     public int PageNumber { get; set; } = 1;
 
     private int _pageSize = 10;

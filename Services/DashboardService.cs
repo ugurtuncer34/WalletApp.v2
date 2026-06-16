@@ -38,9 +38,12 @@ public class DashboardService : IDashboardService
                     Date = t.TransactionDate,
                     Amount = t.Amount,
                     Description = t.Description,
+                    ExchangeRate = t.ExchangeRate,
                     CategoryName = t.Category.Name,
                     CategoryIcon = t.Category.Icon,
-                    MerchantName = t.Merchant?.Name ?? string.Empty
+                    MerchantName = t.Merchant?.Name ?? string.Empty,
+                    CountryName = t.Country?.Name ?? string.Empty,
+                    CurrencySymbol = t.Currency?.Symbol ?? string.Empty
                 })
                 .ToList(),
 
