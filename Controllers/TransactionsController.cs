@@ -32,11 +32,11 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Transaction>> PostTransaction(CreateTransactionRequest request)
+    public async Task<ActionResult<TransactionResponse>> PostTransaction(CreateTransactionRequest request)
     {
 
-        var transaction = await _transactionService.CreateTransactionAsync(request);
-        return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+        var response = await _transactionService.CreateTransactionAsync(request);
+        return CreatedAtAction(nameof(GetTransaction), new { id = response.Id }, response);
 
     }
 

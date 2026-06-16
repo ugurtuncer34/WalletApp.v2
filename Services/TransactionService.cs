@@ -14,11 +14,13 @@ public class TransactionService : ITransactionService
     private readonly AppDbContext _context;
     private readonly ILogger<TransactionService> _logger;
     private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
+    private readonly IMasterDataService _masterDataService;
 
-    public TransactionService(AppDbContext context, ILogger<TransactionService> logger)
+    public TransactionService(AppDbContext context, ILogger<TransactionService> logger, IMasterDataService masterDataService)
     {
         _context = context;
         _logger = logger;
+        _masterDataService = masterDataService;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
@@ -110,73 +112,57 @@ public class TransactionService : ITransactionService
         return transaction;
     }
 
-    public async Task<Transaction> CreateTransactionAsync(CreateTransactionRequest request)
+    public async Task<TransactionResponse> CreateTransactionAsync(CreateTransactionRequest request)
     {
         // Category (Mandatory)
-        Guid finalCategoryId;
+        var allCategories = await _masterDataService.GetCategoriesAsync(); // from cache
+        Category? targetCategory;
+
         if (request.CategoryId == null || request.CategoryId == Guid.Empty)
         {
-            var defaultCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "DİĞER");
-
-            if (defaultCategory == null)
-                throw new ArgumentException("Default category (OTHER) not found in database.");
-
-            finalCategoryId = defaultCategory.Id;
+            targetCategory = allCategories.FirstOrDefault(c => c.Name == "DİĞER");
+            if (targetCategory == null) throw new ArgumentException("Default category (OTHER) not found in database.");
         }
         else
         {
-            finalCategoryId = request.CategoryId.Value;
-        }
-
-        if (!await _context.Categories.AnyAsync(c => c.Id == finalCategoryId))
-        {
-            throw new ArgumentException($"Invalid Category ID: {finalCategoryId}");
+            targetCategory = allCategories.FirstOrDefault(c => c.Id == request.CategoryId.Value);
+            if (targetCategory == null) throw new ArgumentException($"Invalid Category ID: {request.CategoryId.Value}");
         }
 
         // Merchant (Optional)
-        Guid? finalMerchantId = null;
+        Merchant? targetMerchant = null;
         if (request.MerchantId.HasValue && request.MerchantId.Value != Guid.Empty)
         {
-            var merchantExists = await _context.Merchants.AnyAsync(m => m.Id == request.MerchantId.Value);
+            var allMerchants = await _masterDataService.GetMerchantsAsync(); // from cache
+            targetMerchant = allMerchants.FirstOrDefault(m => m.Id == request.MerchantId.Value);
 
-            if (!merchantExists)
-            {
-                throw new ArgumentException($"Invalid Merchant ID: {request.MerchantId.Value}");
-            }
-
-            finalMerchantId = request.MerchantId.Value;
+            if (targetMerchant == null) throw new ArgumentException($"Invalid Merchant ID: {request.MerchantId.Value}");
         }
 
         // Country (Optional, default TR)
-        Guid finalCountryId;
-        if(request.CountryId == null || request.CountryId == Guid.Empty)
+        Country? targetCountry;
+        if (request.CountryId == null || request.CountryId == Guid.Empty)
         {
-            var defaultCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
-            if(defaultCountry is null) throw new ArgumentException("Default country (TR) not found in database.");
-
-            finalCountryId = defaultCountry.Id;
+            targetCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
+            if (targetCountry is null) throw new ArgumentException("Default country (TR) not found in database.");
         }
         else
         {
-            finalCountryId = request.CountryId.Value;
-            if(!await _context.Countries.AnyAsync(c => c.Id == finalCountryId))
-                throw new ArgumentException($"Invalid Country ID: {finalCountryId}");
+            targetCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Id == request.CountryId.Value);
+            if (targetCountry is null) throw new ArgumentException($"Invalid Country ID: {request.CountryId.Value}");
         }
 
         // Currency
-        Guid finalCurrencyId;
-        if(request.CurrencyId == null || request.CurrencyId == Guid.Empty)
+        Currency? targetCurrency;
+        if (request.CurrencyId == null || request.CurrencyId == Guid.Empty)
         {
-            var defaultCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
-            if(defaultCurrency is null) throw new ArgumentException("Default currency (TRY) not found in database.");
-
-            finalCurrencyId = defaultCurrency.Id;
+            targetCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
+            if (targetCurrency is null) throw new ArgumentException("Default currency (TRY) not found in database.");
         }
         else
         {
-            finalCurrencyId = request.CurrencyId.Value;
-            if(!await _context.Currencies.AnyAsync(c => c.Id == finalCurrencyId))
-                throw new ArgumentException($"Invalid Country ID: {finalCurrencyId}");
+            targetCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == request.CurrencyId.Value);
+            if (targetCurrency is null) throw new ArgumentException($"Invalid Currency ID: {request.CurrencyId.Value}");
         }
 
         // ExchangeRate
@@ -189,16 +175,28 @@ public class TransactionService : ITransactionService
             Amount = request.Amount,
             Description = request.Description,
             ExchangeRate = finalExchangeRate,
-            CategoryId = finalCategoryId,
-            MerchantId = finalMerchantId,
-            CountryId = finalCountryId,
-            CurrencyId = finalCurrencyId
+            CategoryId = targetCategory.Id,
+            MerchantId = targetMerchant?.Id,
+            CountryId = targetCountry.Id,
+            CurrencyId = targetCurrency.Id
         };
 
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
 
-        return transaction;
+        return new TransactionResponse
+        {
+            Id = transaction.Id,
+            Date = transaction.TransactionDate,
+            Amount = transaction.Amount,
+            Description = transaction.Description,
+            ExchangeRate = transaction.ExchangeRate,
+            CategoryName = targetCategory.Name,
+            CategoryIcon = targetCategory.Icon,
+            MerchantName = targetMerchant?.Name,
+            CountryName = targetCountry.Name,
+            CurrencySymbol = targetCurrency.Symbol
+        };
     }
 
     public async Task<TransactionResponse> QuickAddTransactionAsync(QuickAddRequest request)
