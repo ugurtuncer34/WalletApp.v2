@@ -9,5 +9,6 @@ public interface ITransactionService
     Task<TransactionResponse> GetTransactionByIdAsync(Guid id);
     Task<TransactionResponse> CreateTransactionAsync(CreateTransactionRequest request);
     Task<TransactionResponse> QuickAddTransactionAsync(QuickAddRequest request);
+    Task<TransactionResponse> UpdateTransactionAsync(Guid id, UpdateTransactionRequest request);
     Task DeleteTransactionAsync(Guid id);
 }

@@ -41,21 +41,13 @@ public class AuthController : ControllerBase
         // take token identity (JTI)
         var jtiClaim = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
 
-        if(string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
         {
             return Unauthorized("Invalid user token");
         }
 
-        try
-        {
-            await _authService.ChangePasswordAsync(userId, request, jtiClaim!);
-            return Ok(new { Message = "Password updated succesfully." });
-        }
-        catch (ArgumentException ex)
-        {
-            // if old password wrong
-            return BadRequest(new { ex.Message });
-        }
+        await _authService.ChangePasswordAsync(userId, request, jtiClaim!);
+        return Ok(new { Message = "Password updated succesfully." });
     }
 
     [Authorize]

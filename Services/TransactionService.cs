@@ -338,6 +338,82 @@ public class TransactionService : ITransactionService
         };
     }
 
+    public async Task<TransactionResponse> UpdateTransactionAsync(Guid id, UpdateTransactionRequest request)
+    {
+        var transaction = await _context.Transactions.FindAsync(id);
+        if (transaction is null) throw new KeyNotFoundException($"Transaction not found. ID: {id}");
+
+        var allCategories = await _masterDataService.GetCategoriesAsync();
+        var allMerchants = await _masterDataService.GetMerchantsAsync();
+        var allCountries = await _masterDataService.GetCountriesAsync();
+        var allCurrencies = await _masterDataService.GetCurrenciesAsync();
+
+        if (request.Amount.HasValue) transaction.Amount = request.Amount.Value;
+        if (request.Date.HasValue) transaction.TransactionDate = request.Date.Value;
+        if (request.ExchangeRate.HasValue) transaction.ExchangeRate = request.ExchangeRate.Value;
+        if (request.Description != null) transaction.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description;
+
+        if (request.CategoryId.HasValue && request.CategoryId.Value != Guid.Empty)
+        {
+            if (!allCategories.Any(c => c.Id == request.CategoryId.Value))
+                throw new ArgumentException($"Invalid Category ID: {request.CategoryId.Value}");
+
+            transaction.CategoryId = request.CategoryId.Value;
+        }
+
+        if (request.MerchantId.HasValue)
+        {
+            if (request.MerchantId.Value == Guid.Empty)
+            {
+                transaction.MerchantId = null;
+            }
+            else
+            {
+                if (!allMerchants.Any(m => m.Id == request.MerchantId.Value))
+                    throw new ArgumentException($"Invalid Merchant ID: {request.MerchantId.Value}");
+
+                transaction.MerchantId = request.MerchantId.Value;
+            }
+        }
+
+        if (request.CountryId.HasValue && request.CountryId.Value != Guid.Empty)
+        {
+            if (!allCountries.Any(c => c.Id == request.CountryId.Value))
+                throw new ArgumentException($"Invalid Country ID: {request.CountryId.Value}");
+
+            transaction.CountryId = request.CountryId.Value;
+        }
+
+        if (request.CurrencyId.HasValue && request.CurrencyId.Value != Guid.Empty)
+        {
+            if (!allCurrencies.Any(c => c.Id == request.CurrencyId.Value))
+                throw new ArgumentException($"Invalid Currency ID: {request.CurrencyId.Value}");
+
+            transaction.CurrencyId = request.CurrencyId.Value;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var finalCategory = allCategories.FirstOrDefault(c => c.Id == transaction.CategoryId);
+        var finalMerchant = transaction.MerchantId.HasValue ? allMerchants.FirstOrDefault(m => m.Id == transaction.MerchantId.Value) : null;
+        var finalCountry = allCountries.FirstOrDefault(c => c.Id == transaction.CountryId);
+        var finalCurrency = allCurrencies.FirstOrDefault(c => c.Id == transaction.CurrencyId);
+
+        return new TransactionResponse
+        {
+            Id = transaction.Id,
+            Date = transaction.TransactionDate,
+            Amount = transaction.Amount,
+            Description = transaction.Description,
+            ExchangeRate = transaction.ExchangeRate,
+            CategoryName = finalCategory?.Name ?? string.Empty,
+            CategoryIcon = finalCategory?.Icon,
+            MerchantName = finalMerchant?.Name,
+            CountryName = finalCountry?.Name ?? string.Empty,
+            CurrencySymbol = finalCurrency?.Symbol ?? string.Empty
+        };
+    }
+
     public async Task DeleteTransactionAsync(Guid id)
     {
         var transaction = await _context.Transactions.FindAsync(id);

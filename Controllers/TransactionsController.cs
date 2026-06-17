@@ -49,6 +49,13 @@ public class TransactionsController : ControllerBase
 
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<TransactionResponse>> PutTransaction(Guid id, UpdateTransactionRequest request)
+    {
+        var updated = await _transactionService.UpdateTransactionAsync(id, request);
+        return Ok(updated);
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTransaction(Guid id)
     {
