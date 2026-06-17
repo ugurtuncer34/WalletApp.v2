@@ -1,0 +1,39 @@
+services:
+  # 1. PostgreSQL (Alpine(Lightweight) & Healthcheck(WaitforDb))
+  postgres-db:
+    image: postgres:alpine
+    container_name: wallet_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: walletuser
+      POSTGRES_PASSWORD: MySecretPass123!
+      POSTGRES_DB: WalletDb
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432" # open for connection to DBeaver/pgAdmin 
+    volumes:
+      - pgdata:/var/lib/postgresql/data # permanent data volume
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U walletuser -d WalletDb"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  # 2. .NET API
+  wallet-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wallet_api
+    restart: unless-stopped
+    ports:
+      - "5139:8080" # Frontend connection port
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres-db;Port=5432;Database=WalletDb;Username=walletuser;Password=MySecretPass123!
+    depends_on:
+      postgres-db:
+        condition: service_healthy # API waits for DB
+
+volumes:
+  pgdata: # permanent disc space
