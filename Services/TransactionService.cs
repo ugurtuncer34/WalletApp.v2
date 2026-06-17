@@ -223,9 +223,10 @@ public class TransactionService : ITransactionService
         var processingText = rawText;
         var processingTextLower = processingText.ToLower(_trCulture);
 
-        // Merchant
-        var allMerchants = await _context.Merchants.Include(m => m.DefaultCategory).ToListAsync();
+        var allMerchants = await _masterDataService.GetMerchantsAsync();
+        var allCategories = await _masterDataService.GetCategoriesAsync(); // from cache
 
+        // Merchant
         Merchant? matchedMerchant = null;
         int earliestIndex = int.MaxValue;
         int matchedLength = -1;
@@ -277,7 +278,7 @@ public class TransactionService : ITransactionService
                             if (rule.Value.Any(keyword => currentTextLower.Contains(keyword.ToLower(_trCulture), StringComparison.Ordinal)))
                             {
                                 var ruleKeyUpper = rule.Key.ToUpperInvariant();
-                                targetCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == ruleKeyUpper);
+                                targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpper() == ruleKeyUpper);
                                 break;
                             }
                         }
@@ -292,7 +293,7 @@ public class TransactionService : ITransactionService
 
         if (targetCategory == null)
         {
-            targetCategory = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToUpper() == "DİĞER");
+            targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpper() == "DİĞER");
         }
         if (targetCategory == null) throw new ArgumentException("There is no category named 'OTHER' in the system");
 
@@ -300,8 +301,11 @@ public class TransactionService : ITransactionService
         processingText = Regex.Replace(processingText, @"\s+", " ").Trim();
 
         // Default settings
-        var defaultCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
-        var defaultCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
+        var allCountries = await _masterDataService.GetCountriesAsync();
+        var defaultCountry = allCountries.FirstOrDefault(c => c.Code.ToUpperInvariant() == "TR");
+
+        var allCurrencies = await _masterDataService.GetCurrenciesAsync();
+        var defaultCurrency = allCurrencies.FirstOrDefault(c => c.Code.ToUpperInvariant() == "TRY");
 
         var transaction = new Transaction
         {
