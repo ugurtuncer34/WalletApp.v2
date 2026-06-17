@@ -67,6 +67,18 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
+    {
+        return await _context.Users
+            .Select(u => new UserResponse
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Role = u.Role
+            })
+            .ToListAsync();
+    }
+
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, string currentJti)
     {
         // find user from db

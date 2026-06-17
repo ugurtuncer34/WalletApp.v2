@@ -32,6 +32,14 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize]
+    [HttpGet("users")]
+    public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsers()
+    {
+        var users = await _authService.GetAllUsersAsync();
+        return Ok(users);
+    }
+
     [Authorize] // only access if logged in
     [HttpPut("change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
