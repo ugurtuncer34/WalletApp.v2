@@ -32,7 +32,17 @@ public class CountriesController : ControllerBase
     public async Task<ActionResult<Country>> PostCountry(Country country)
     {
         var createdCountry = await _masterDataService.CreateCountryAsync(country);
-        return CreatedAtAction(nameof(GetCountry), new {id = createdCountry.Id}, createdCountry);
+        return CreatedAtAction(nameof(GetCountry), new { id = createdCountry.Id }, createdCountry);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<Country>> PutCountry(Guid id, Country country)
+    {
+        if (id != country.Id)
+            return BadRequest("Url ID does not match with Body ID");
+
+        var updatedCountry = await _masterDataService.UpdateCountryAsync(id, country);
+        return Ok(updatedCountry);
     }
 
     [HttpDelete("{id}")]

@@ -38,6 +38,16 @@ public class MerchantsController : ControllerBase
         return CreatedAtAction(nameof(GetMerchant), new { id = createdMerchant.Id }, createdMerchant);
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<Merchant>> PutMerchant(Guid id, Merchant merchant)
+    {
+        if(id != merchant.Id)
+            return BadRequest("Url ID does not match with Body ID");
+        
+        var updatedMerchant = await _masterDataService.UpdateMerchantAsync(id, merchant);
+        return Ok(updatedMerchant);
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMerchant(Guid id)
     {

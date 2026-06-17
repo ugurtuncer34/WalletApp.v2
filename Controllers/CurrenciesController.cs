@@ -37,6 +37,16 @@ public class CurrenciesController : ControllerBase
         return CreatedAtAction(nameof(GetCurrency), new { id = createdCurrency.Id }, createdCurrency);
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<Currency>> PutCurrency(Guid id, Currency currency)
+    {
+        if (id != currency.Id)
+            return BadRequest("Url ID does not match with Body ID");
+
+        var updatedCurrency = await _masterDataService.UpdateCurrencyAsync(id, currency);
+        return Ok(updatedCurrency);
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCurrency(Guid id)
     {

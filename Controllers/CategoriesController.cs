@@ -37,6 +37,16 @@ public class CategoriesController : ControllerBase
         return CreatedAtAction(nameof(GetCategory), new { id = createdCategory.Id }, createdCategory);
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<Category>> PutCategory(Guid id, Category category)
+    {
+        if(id != category.Id)
+            return BadRequest("Url ID does not match with Body ID");
+        
+        var updatedCategory = await _masterDataService.UpdateCategoryAsync(id, category);
+        return Ok(updatedCategory);
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
