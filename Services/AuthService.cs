@@ -64,6 +64,22 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
+    {
+        // find user from db
+        var user = await _context.Users.FindAsync(userId);
+        if(user is null) throw new KeyNotFoundException("User not found");
+
+        // validate old password
+        bool isOldPasswordValid = BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash);
+        if(!isOldPasswordValid) throw new ArgumentException("Wrong password.");
+
+        // hash new password and save
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+        await _context.SaveChangesAsync();
+    }
+
     private string GenerateJwtToken(User user)
     {
         // Take secret from SecretManager or AppSettings
