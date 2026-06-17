@@ -140,28 +140,30 @@ public class TransactionService : ITransactionService
         }
 
         // Country (Optional, default TR)
+        var allCountries = await _masterDataService.GetCountriesAsync(); // from cache
         Country? targetCountry;
         if (request.CountryId == null || request.CountryId == Guid.Empty)
         {
-            targetCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TR");
+            targetCountry = allCountries.FirstOrDefault(c => c.Code.ToUpper() == "TR");
             if (targetCountry is null) throw new ArgumentException("Default country (TR) not found in database.");
         }
         else
         {
-            targetCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Id == request.CountryId.Value);
+            targetCountry = allCountries.FirstOrDefault(c => c.Id == request.CountryId.Value);
             if (targetCountry is null) throw new ArgumentException($"Invalid Country ID: {request.CountryId.Value}");
         }
 
-        // Currency
+        // Currency (Optional, default TRY)
+        var allCurrencies = await _masterDataService.GetCurrenciesAsync(); // from cache
         Currency? targetCurrency;
         if (request.CurrencyId == null || request.CurrencyId == Guid.Empty)
         {
-            targetCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code.ToUpper() == "TRY");
+            targetCurrency = allCurrencies.FirstOrDefault(c => c.Code.ToUpper() == "TRY");
             if (targetCurrency is null) throw new ArgumentException("Default currency (TRY) not found in database.");
         }
         else
         {
-            targetCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Id == request.CurrencyId.Value);
+            targetCurrency = allCurrencies.FirstOrDefault(c => c.Id == request.CurrencyId.Value);
             if (targetCurrency is null) throw new ArgumentException($"Invalid Currency ID: {request.CurrencyId.Value}");
         }
 

@@ -12,6 +12,8 @@ public class MasterDataService : IMasterDataService
     private readonly IDistributedCache _cache;
     private const string CategoriesCacheKey = "all_categories";
     private const string MerchantsCacheKey = "all_merchants";
+    private const string CountriesCacheKey = "all_countries";
+    private const string CurrenciesCacheKey = "all_currencies";
 
     public MasterDataService(AppDbContext context, IDistributedCache cache)
     {
@@ -50,7 +52,7 @@ public class MasterDataService : IMasterDataService
     {
         var category = await _context.Categories
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(c => c.Id == id);
         if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
         return category;
     }
@@ -109,7 +111,7 @@ public class MasterDataService : IMasterDataService
     {
         var merchant = await _context.Merchants
             .Include(m => m.DefaultCategory)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(m => m.Id == id);
         
         if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
         return merchant;
@@ -142,7 +144,22 @@ public class MasterDataService : IMasterDataService
     ///////// COUNTRIES /////////
     public async Task<IEnumerable<Country>> GetCountriesAsync()
     {
-        return await _context.Countries.ToListAsync();
+        var cachedData = await _cache.GetStringAsync(CountriesCacheKey);
+
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            return JsonSerializer.Deserialize<IEnumerable<Country>>(cachedData) ?? Enumerable.Empty<Country>();
+        }
+        var countries = await _context.Countries.ToListAsync();
+
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+        };
+        var serilizedData = JsonSerializer.Serialize(countries);
+        await _cache.SetStringAsync(CountriesCacheKey, serilizedData, cacheOptions);
+
+        return countries;
     }
 
     public async Task<Country> GetCountryByIdAsync(Guid id)
@@ -160,6 +177,8 @@ public class MasterDataService : IMasterDataService
         _context.Countries.Add(country);
         await _context.SaveChangesAsync();
 
+        await _cache.RemoveAsync(CountriesCacheKey);
+
         return country;
     }
 
@@ -170,12 +189,29 @@ public class MasterDataService : IMasterDataService
 
         _context.Countries.Remove(country);
         await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync(CountriesCacheKey);
     }
 
     ///////// CURRENCIES /////////
     public async Task<IEnumerable<Currency>> GetCurrenciesAsync()
     {
-        return await _context.Currencies.ToListAsync();
+        var cachedData = await _cache.GetStringAsync(CurrenciesCacheKey);
+
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            return JsonSerializer.Deserialize<IEnumerable<Currency>>(cachedData) ?? Enumerable.Empty<Currency>();
+        }
+        var currencies = await _context.Currencies.ToListAsync();
+
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+        };
+        var serilizedData = JsonSerializer.Serialize(currencies);
+        await _cache.SetStringAsync(CurrenciesCacheKey, serilizedData, cacheOptions);
+
+        return currencies;
     }
 
     public async Task<Currency> GetCurrencyByIdAsync(Guid id)
@@ -194,6 +230,8 @@ public class MasterDataService : IMasterDataService
         _context.Currencies.Add(currency);
         await _context.SaveChangesAsync();
 
+        await _cache.RemoveAsync(CurrenciesCacheKey);
+
         return currency;
     }
 
@@ -204,5 +242,7 @@ public class MasterDataService : IMasterDataService
 
         _context.Currencies.Remove(currency);
         await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync(CurrenciesCacheKey);
     }
 }
