@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using WalletApp.Dtos;
 using WalletApp.Services;
@@ -37,6 +38,8 @@ public class AuthController : ControllerBase
     {
         // pull user ID from JWT (Subject claim)
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        // take token identity (JTI)
+        var jtiClaim = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
 
         if(string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
         {
@@ -45,7 +48,7 @@ public class AuthController : ControllerBase
 
         try
         {
-            await _authService.ChangePasswordAsync(userId, request);
+            await _authService.ChangePasswordAsync(userId, request, jtiClaim);
             return Ok(new { Message = "Password updated succesfully." });
         }
         catch (ArgumentException ex)
@@ -53,5 +56,21 @@ public class AuthController : ControllerBase
             // if old password wrong
             return BadRequest(new { ex.Message });
         }
+    }
+
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var jtiClaim = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
+        {
+            return Unauthorized("Invalid user token.");
+        }
+
+        await _authService.DeleteUserAsync(userId, jtiClaim);
+        return NoContent();
     }
 }

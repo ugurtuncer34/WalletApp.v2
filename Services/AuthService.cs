@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using WalletApp.Data;
 using WalletApp.Dtos;
@@ -13,11 +14,13 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IDistributedCache _cache;
 
-    public AuthService(AppDbContext context, IConfiguration configuration)
+    public AuthService(AppDbContext context, IConfiguration configuration, IDistributedCache cache)
     {
         _context = context;
         _configuration = configuration;
+        _cache = cache;
     }
 
     public async Task<AuthResponse> RegisterAsync(UserLoginRequest request)
@@ -64,7 +67,7 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, string currentJti)
     {
         // find user from db
         var user = await _context.Users.FindAsync(userId);
@@ -76,8 +79,36 @@ public class AuthService : IAuthService
 
         // hash new password and save
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-
         await _context.SaveChangesAsync();
+
+        await InvalidateTokenAsync(currentJti);
+    }
+
+    public async Task DeleteUserAsync(Guid userId, string currentJti)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if(user is null) throw new KeyNotFoundException("User not found");
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+
+        await InvalidateTokenAsync(currentJti);
+    }
+
+    private async Task InvalidateTokenAsync(string jti)
+    {
+        if(string.IsNullOrEmpty(jti)) return;
+
+        var expirationMinutes = _configuration.GetValue<int>("JwtSettings:ExpirationMinutes");
+
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            // should stay in blacklist untill token lifetime ends
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(expirationMinutes)
+        };
+
+        // save to cache as blacklist_ tokenID
+        await _cache.SetStringAsync($"blacklist_{jti}", "revoked", cacheOptions);
     }
 
     private string GenerateJwtToken(User user)
