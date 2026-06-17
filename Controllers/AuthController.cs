@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
 
         try
         {
-            await _authService.ChangePasswordAsync(userId, request, jtiClaim);
+            await _authService.ChangePasswordAsync(userId, request, jtiClaim!);
             return Ok(new { Message = "Password updated succesfully." });
         }
         catch (ArgumentException ex)
@@ -70,7 +70,7 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid user token.");
         }
 
-        await _authService.DeleteUserAsync(userId, jtiClaim);
+        await _authService.DeleteUserAsync(userId, jtiClaim!);
         return NoContent();
     }
 }

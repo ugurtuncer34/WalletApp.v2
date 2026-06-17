@@ -95,6 +95,18 @@ public class MasterDataService : IMasterDataService
 
     public async Task DeleteCategoryAsync(Guid id)
     {
+        bool hasTransactions = await _context.Transactions.AnyAsync(t => t.CategoryId == id);
+        if(hasTransactions)
+            throw new InvalidOperationException("There are transactions tied to this category. Move them to another category before delete.");
+        
+        bool hasChildCategories = await _context.Categories.AnyAsync(c => c.ParentCategoryId == id);
+        if(hasChildCategories)
+            throw new InvalidOperationException("This category has sub-categories! Delete or update them first.");
+
+        bool isDefaultMerchantCategory = await _context.Merchants.AnyAsync(m => m.DefaultCategoryId == id);
+        if(isDefaultMerchantCategory)
+            throw new InvalidOperationException("This category has been set to be default for some merchants. Update them first.");
+
         var category = await _context.Categories.FindAsync(id);
         if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
         
@@ -174,6 +186,9 @@ public class MasterDataService : IMasterDataService
 
     public async Task DeleteMerchantAsync(Guid id)
     {
+        bool isInUse = await _context.Transactions.AnyAsync(t => t.MerchantId == id);
+        if(isInUse) throw new InvalidOperationException("There are transactions tied to this merchant. Clear them before delete.");
+        
         var merchant = await _context.Merchants.FindAsync(id);
         if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
 
@@ -251,6 +266,9 @@ public class MasterDataService : IMasterDataService
 
     public async Task DeleteCountryAsync(Guid id)
     {
+        bool isInUse = await _context.Transactions.AnyAsync(t => t.CountryId == id);
+        if(isInUse) throw new InvalidOperationException("There are transactions tied to this country. Update them before delete.");
+        
         var country = await _context.Countries.FindAsync(id);
         if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
 
@@ -327,6 +345,9 @@ public class MasterDataService : IMasterDataService
 
     public async Task DeleteCurrencyAsync(Guid id)
     {
+        bool isInUse = await _context.Transactions.AnyAsync(t => t.CurrencyId == id);
+        if(isInUse) throw new InvalidOperationException("There are transactions with this currency. Update them first.");
+        
         var currency = await _context.Currencies.FindAsync(id);
         if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
 
