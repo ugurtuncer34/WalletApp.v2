@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Data;
 using WalletApp.Entities;
+using WalletApp.Services;
 
 namespace WalletApp.Controllers;
 
@@ -10,9 +11,11 @@ namespace WalletApp.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public AdminController(AppDbContext context)
+    private readonly IMasterDataService _masterDataService;
+    public AdminController(AppDbContext context, IMasterDataService masterDataService)
     {
         _context = context;
+        _masterDataService = masterDataService;
     }
 
     [HttpGet("master-data")]
@@ -20,10 +23,10 @@ public class AdminController : ControllerBase
     {
         var masterData = new
         {
-            Categories = await _context.Categories.ToListAsync(),
-            Currencies = await _context.Currencies.ToListAsync(),
-            Countries = await _context.Countries.ToListAsync(),
-            Merchants = await _context.Merchants.ToListAsync(),
+            Categories = await _masterDataService.GetCategoriesAsync(),
+            Currencies = await _masterDataService.GetCurrenciesAsync(),
+            Countries = await _masterDataService.GetCountriesAsync(),
+            Merchants = await _masterDataService.GetMerchantsAsync(),
             Tags = await _context.Tags.ToListAsync(),
             Transactions = await _context.Transactions
                 .OrderByDescending(t => t.TransactionDate)
