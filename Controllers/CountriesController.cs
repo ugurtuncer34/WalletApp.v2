@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WalletApp.Data;
 using WalletApp.Entities;
+using WalletApp.Services;
 
 namespace WalletApp.Controllers;
 
@@ -9,44 +8,37 @@ namespace WalletApp.Controllers;
 [Route("api/[controller]")]
 public class CountriesController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    public CountriesController(AppDbContext context)
+    private readonly IMasterDataService _masterDataService;
+    public CountriesController(IMasterDataService masterDataService)
     {
-        _context = context;
+        _masterDataService = masterDataService;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Country>>> GetCountries()
     {
-        return await _context.Countries.ToListAsync();
+        var countries = await _masterDataService.GetCountriesAsync();
+        return Ok(countries);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Country>> GetCountry(Guid id)
     {
-        var country = await _context.Countries.FindAsync(id);
-        if(country is null)
-            return NotFound();
-        return country;
+        var country = await _masterDataService.GetCountryByIdAsync(id);
+        return Ok(country);
     }
 
     [HttpPost]
     public async Task<ActionResult<Country>> PostCountry(Country country)
     {
-        _context.Countries.Add(country);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetCountry), new {id = country.Id}, country);
+        var createdCountry = await _masterDataService.CreateCountryAsync(country);
+        return CreatedAtAction(nameof(GetCountry), new {id = createdCountry.Id}, createdCountry);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCountry(Guid id)
     {
-        var country = await _context.Countries.FindAsync(id);
-        if(country is null)
-            return NotFound();
-        
-        _context.Countries.Remove(country);
-        await _context.SaveChangesAsync();
+        await _masterDataService.DeleteCountryAsync(id);
         return NoContent();
     }
 }

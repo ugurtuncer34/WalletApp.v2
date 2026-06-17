@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Data;
 using WalletApp.Entities;
+using WalletApp.Services;
 
 namespace WalletApp.Controllers;
 
@@ -9,50 +10,37 @@ namespace WalletApp.Controllers;
 [Route("api/[controller]")]
 public class CurrenciesController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    public CurrenciesController(AppDbContext context)
+    private readonly IMasterDataService _masterDataService;
+    public CurrenciesController(IMasterDataService masterDataService)
     {
-        _context = context;
+        _masterDataService = masterDataService;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Currency>>> GetCurrencies()
     {
-        return await _context.Currencies.ToListAsync();
+        var currencies = await _masterDataService.GetCurrenciesAsync();
+        return Ok(currencies);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Currency>> GetCurrency(Guid id)
     {
-        var currency = await _context.Currencies.FindAsync(id);
-        if(currency is null)
-            return NotFound();
-        return currency;
+        var currency = await _masterDataService.GetCurrencyByIdAsync(id);
+        return Ok(currency);
     }
 
     [HttpPost]
     public async Task<ActionResult<Currency>> PostCurrency(Currency currency)
     {
-        currency.Code = currency.Code.ToUpper();
-        var exists = await _context.Currencies.AnyAsync(c => c.Code == currency.Code);
-        if (exists)
-        {
-            return BadRequest($"Error: '{currency.Code}' code already exists!");
-        }
-        _context.Currencies.Add(currency);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetCurrency), new { id = currency.Id }, currency);
+        var createdCurrency = await _masterDataService.CreateCurrencyAsync(currency);
+        return CreatedAtAction(nameof(GetCurrency), new { id = createdCurrency.Id }, createdCurrency);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCurrency(Guid id)
     {
-        var currency = await _context.Currencies.FindAsync(id);
-        if(currency is null)
-            return NotFound();
-        
-        _context.Currencies.Remove(currency);
-        await _context.SaveChangesAsync();
+        await _masterDataService.DeleteCurrencyAsync(id);
         return NoContent();
     }
 }

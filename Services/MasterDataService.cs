@@ -19,7 +19,7 @@ public class MasterDataService : IMasterDataService
         _cache = cache;
     }
 
-    // CATEGORIES
+    ///////// CATEGORIES /////////
     public async Task<IEnumerable<Category>> GetCategoriesAsync()
     {
         // Check if the box is inside RAM
@@ -81,7 +81,7 @@ public class MasterDataService : IMasterDataService
         await _cache.RemoveAsync(CategoriesCacheKey);
     }
 
-    // MERCHANTS
+    ///////// MERCHANTS /////////
     public async Task<IEnumerable<Merchant>> GetMerchantsAsync()
     {
         var cachedData = await _cache.GetStringAsync(MerchantsCacheKey);
@@ -137,5 +137,72 @@ public class MasterDataService : IMasterDataService
         await _context.SaveChangesAsync();
 
         await _cache.RemoveAsync(MerchantsCacheKey);
+    }
+
+    ///////// COUNTRIES /////////
+    public async Task<IEnumerable<Country>> GetCountriesAsync()
+    {
+        return await _context.Countries.ToListAsync();
+    }
+
+    public async Task<Country> GetCountryByIdAsync(Guid id)
+    {
+        var country = await _context.Countries.FindAsync(id);
+        if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
+        return country;
+    }
+
+    public async Task<Country> CreateCountryAsync(Country country)
+    {
+        var exists = await _context.Countries.AnyAsync(c=> c.Name.ToLower() == country.Name.ToLower());
+        if(exists) throw new ArgumentException($"'{country.Name}' already exists.");
+        
+        _context.Countries.Add(country);
+        await _context.SaveChangesAsync();
+
+        return country;
+    }
+
+    public async Task DeleteCountryAsync(Guid id)
+    {
+        var country = await _context.Countries.FindAsync(id);
+        if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
+
+        _context.Countries.Remove(country);
+        await _context.SaveChangesAsync();
+    }
+
+    ///////// CURRENCIES /////////
+    public async Task<IEnumerable<Currency>> GetCurrenciesAsync()
+    {
+        return await _context.Currencies.ToListAsync();
+    }
+
+    public async Task<Currency> GetCurrencyByIdAsync(Guid id)
+    {
+        var currency = await _context.Currencies.FindAsync(id);
+        if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
+        return currency;
+    }
+
+    public async Task<Currency> CreateCurrencyAsync(Currency currency)
+    {
+        currency.Code = currency.Code.ToUpper();
+        var exists = await _context.Currencies.AnyAsync(c=> c.Code == currency.Code);
+        if(exists) throw new ArgumentException($"'{currency.Code}' already exists.");
+
+        _context.Currencies.Add(currency);
+        await _context.SaveChangesAsync();
+
+        return currency;
+    }
+
+    public async Task DeleteCurrencyAsync(Guid id)
+    {
+        var currency = await _context.Currencies.FindAsync(id);
+        if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
+
+        _context.Currencies.Remove(currency);
+        await _context.SaveChangesAsync();
     }
 }
