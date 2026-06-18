@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
@@ -15,12 +16,14 @@ public class TransactionService : ITransactionService
     private readonly ILogger<TransactionService> _logger;
     private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
     private readonly IMasterDataService _masterDataService;
+    private readonly IDistributedCache _cache;
 
-    public TransactionService(AppDbContext context, ILogger<TransactionService> logger, IMasterDataService masterDataService)
+    public TransactionService(AppDbContext context, ILogger<TransactionService> logger, IMasterDataService masterDataService, IDistributedCache cache)
     {
         _context = context;
         _logger = logger;
         _masterDataService = masterDataService;
+        _cache = cache;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
@@ -118,7 +121,7 @@ public class TransactionService : ITransactionService
         var allCategories = await _masterDataService.GetCategoriesAsync(); // from cache
         Category? targetCategory;
 
-        if (request.CategoryId == null || request.CategoryId == Guid.Empty)
+        if (request.CategoryId == null || request.CategoryId == Guid.Empty) // if(request.CategoryId.GetValueOrDefault() == Guid.Empty)
         {
             targetCategory = allCategories.FirstOrDefault(c => c.Name == "DİĞER");
             if (targetCategory == null) throw new ArgumentException("Default category (OTHER) not found in database.");
@@ -261,26 +264,43 @@ public class TransactionService : ITransactionService
         {
             try
             {
-                var rulesFilePath = "category-rules.json";
-                if (!File.Exists(rulesFilePath)) rulesFilePath = "category-rules.example.json";
+                var cacheKey = "category_rules_json";
+                var cachedRules = await _cache.GetStringAsync(cacheKey);
+                Dictionary<string, List<string>>? categoryRules = null;
 
-                if (File.Exists(rulesFilePath))
+                if (!string.IsNullOrEmpty(cachedRules))
                 {
-                    var jsonContent = await File.ReadAllTextAsync(rulesFilePath);
-                    var categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
+                    // Read from RAM if exists
+                    categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(cachedRules);
+                }
+                else
+                {
+                    // Read from disc if not exists in RAM
+                    var rulesFilePath = "category-rules.json";
+                    if (!File.Exists(rulesFilePath)) rulesFilePath = "category-rules.example.json";
 
-                    if (categoryRules != null)
+                    if (File.Exists(rulesFilePath))
                     {
-                        var currentTextLower = processingText.ToLower(_trCulture);
+                        var jsonContent = await File.ReadAllTextAsync(rulesFilePath);
+                        categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
 
-                        foreach (var rule in categoryRules)
+                        // Write to RAM for 24 hours
+                        var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) };
+                        await _cache.SetStringAsync(cacheKey, jsonContent, cacheOptions);
+                    }
+                }
+
+                // Conduct rules
+                if (categoryRules != null)
+                {
+                    var currentTextLower = processingText.ToLower(_trCulture);
+                    foreach (var rule in categoryRules)
+                    {
+                        if (rule.Value.Any(keyword => currentTextLower.Contains(keyword.ToLower(_trCulture), StringComparison.Ordinal)))
                         {
-                            if (rule.Value.Any(keyword => currentTextLower.Contains(keyword.ToLower(_trCulture), StringComparison.Ordinal)))
-                            {
-                                var ruleKeyUpper = rule.Key.ToUpperInvariant();
-                                targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpper() == ruleKeyUpper);
-                                break;
-                            }
+                            var ruleKeyUpper = rule.Key.ToUpperInvariant();
+                            targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpperInvariant() == ruleKeyUpper);
+                            break;
                         }
                     }
                 }
