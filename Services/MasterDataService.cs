@@ -21,31 +21,35 @@ public class MasterDataService : IMasterDataService
         _cache = cache;
     }
 
-    ///////// CATEGORIES /////////
-    public async Task<IEnumerable<Category>> GetCategoriesAsync()
+    ///////// GENERIC CACHE HELPER /////////
+    private async Task<IEnumerable<T>> GetOrSetCacheAsync<T>(string cacheKey, Func<Task<IEnumerable<T>>> fetchFromDbFunc)
     {
         // Check if the box is inside RAM
-        var cachedData = await _cache.GetStringAsync(CategoriesCacheKey);
+        var cachedData = await _cache.GetStringAsync(cacheKey);
         if (!string.IsNullOrEmpty(cachedData))
         {
             // Found the box. Convert to c# object and return.
-            return JsonSerializer.Deserialize<IEnumerable<Category>>(cachedData) ?? Enumerable.Empty<Category>();
+            return JsonSerializer.Deserialize<IEnumerable<T>>(cachedData) ?? Enumerable.Empty<T>();
         }
 
         // If not inside RAM, go to DB
-        var categories = await _context.Categories
-            .Include(c => c.ParentCategory)
-            .ToListAsync();
-        
-        // Convert to JSON string for further requests
+        var data = await fetchFromDbFunc();
+
         var cacheOptions = new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
         };
-        var serilizedData = JsonSerializer.Serialize(categories);
-        await _cache.SetStringAsync(CategoriesCacheKey, serilizedData, cacheOptions);
+        // Set cache with converting to JSON string
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(data), cacheOptions);
 
-        return categories;
+        return data;
+    }
+
+    ///////// CATEGORIES /////////
+    public async Task<IEnumerable<Category>> GetCategoriesAsync()
+    {
+        return await GetOrSetCacheAsync<Category>(CategoriesCacheKey, async () =>
+            await _context.Categories.Include(c => c.ParentCategory).ToListAsync());
     }
 
     public async Task<Category> GetCategoryByIdAsync(Guid id)
@@ -59,7 +63,8 @@ public class MasterDataService : IMasterDataService
 
     public async Task<Category> CreateCategoryAsync(Category category)
     {
-        var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == category.Name.ToLower());
+        var searchName = category.Name.ToLowerInvariant();
+        var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == searchName);
         if(exists) throw new ArgumentException($"'{category.Name}' already exists.");
 
         _context.Categories.Add(category);
@@ -76,10 +81,13 @@ public class MasterDataService : IMasterDataService
         var category = await _context.Categories.FindAsync(id);
         if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
 
+        var newName = updatedCategory.Name.ToLowerInvariant();
+        var currentName = category.Name.ToLowerInvariant();
+        
         // if name changed, check if it's already in use
-        if(category.Name.ToLower() != updatedCategory.Name.ToLower())
+        if(currentName != newName)
         {
-            var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == updatedCategory.Name.ToLower() && c.Id != id);
+            var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == newName && c.Id != id);
             if(exists) throw new ArgumentException($"'{updatedCategory.Name}' already exists.");
         }
 
@@ -120,25 +128,8 @@ public class MasterDataService : IMasterDataService
     ///////// MERCHANTS /////////
     public async Task<IEnumerable<Merchant>> GetMerchantsAsync()
     {
-        var cachedData = await _cache.GetStringAsync(MerchantsCacheKey);
-
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<IEnumerable<Merchant>>(cachedData) ?? Enumerable.Empty<Merchant>();
-        }
-
-        var merchants = await _context.Merchants
-            .Include(m => m.DefaultCategory)
-            .ToListAsync();
-
-        var cacheOptions = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
-        };
-        var serilizedData = JsonSerializer.Serialize(merchants);
-        await _cache.SetStringAsync(MerchantsCacheKey, serilizedData, cacheOptions);
-
-        return merchants;
+        return await GetOrSetCacheAsync<Merchant>(MerchantsCacheKey, async () =>
+            await _context.Merchants.Include(m => m.DefaultCategory).ToListAsync());
     }
 
     public async Task<Merchant> GetMerchantByIdAsync(Guid id)
@@ -153,7 +144,8 @@ public class MasterDataService : IMasterDataService
 
     public async Task<Merchant> CreateMerchantAsync(Merchant merchant)
     {
-        var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == merchant.Name.ToLower());
+        var searchName = merchant.Name.ToLowerInvariant();
+        var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == searchName);
         if(exists) throw new ArgumentException($"'{merchant.Name}' already exists.");
 
         _context.Merchants.Add(merchant);
@@ -169,9 +161,12 @@ public class MasterDataService : IMasterDataService
         var merchant = await _context.Merchants.FindAsync(id);
         if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
 
-        if(merchant.Name.ToLower() != updatedMerchant.Name.ToLower())
+        var newName = updatedMerchant.Name.ToLowerInvariant();
+        var currentName = merchant.Name.ToLowerInvariant();
+        
+        if(currentName != newName)
         {
-            var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == updatedMerchant.Name.ToLower() && m.Id != id);
+            var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == newName && m.Id != id);
             if(exists) throw new ArgumentException($"'{updatedMerchant.Name}' already exists.");
         }
 
@@ -201,22 +196,8 @@ public class MasterDataService : IMasterDataService
     ///////// COUNTRIES /////////
     public async Task<IEnumerable<Country>> GetCountriesAsync()
     {
-        var cachedData = await _cache.GetStringAsync(CountriesCacheKey);
-
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<IEnumerable<Country>>(cachedData) ?? Enumerable.Empty<Country>();
-        }
-        var countries = await _context.Countries.ToListAsync();
-
-        var cacheOptions = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
-        };
-        var serilizedData = JsonSerializer.Serialize(countries);
-        await _cache.SetStringAsync(CountriesCacheKey, serilizedData, cacheOptions);
-
-        return countries;
+        return await GetOrSetCacheAsync<Country>(CountriesCacheKey, async () => 
+            await _context.Countries.ToListAsync());
     }
 
     public async Task<Country> GetCountryByIdAsync(Guid id)
@@ -228,7 +209,8 @@ public class MasterDataService : IMasterDataService
 
     public async Task<Country> CreateCountryAsync(Country country)
     {
-        var exists = await _context.Countries.AnyAsync(c=> c.Name.ToLower() == country.Name.ToLower());
+        var searchName = country.Name.ToLowerInvariant();
+        var exists = await _context.Countries.AnyAsync(c=> c.Name.ToLower() == searchName);
         if(exists) throw new ArgumentException($"'{country.Name}' already exists.");
         
         _context.Countries.Add(country);
@@ -244,8 +226,8 @@ public class MasterDataService : IMasterDataService
         var country = await _context.Countries.FindAsync(id);
         if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
 
-        var newNameLower = updatedCountry.Name.ToLower();
-        var newCodeLower = updatedCountry.Code.ToLower();
+        var newNameLower = updatedCountry.Name.ToLowerInvariant();
+        var newCodeLower = updatedCountry.Code.ToLowerInvariant();
 
         if(country.Name.ToLower() != newNameLower || country.Code.ToLower() != newCodeLower)
         {
@@ -281,22 +263,8 @@ public class MasterDataService : IMasterDataService
     ///////// CURRENCIES /////////
     public async Task<IEnumerable<Currency>> GetCurrenciesAsync()
     {
-        var cachedData = await _cache.GetStringAsync(CurrenciesCacheKey);
-
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<IEnumerable<Currency>>(cachedData) ?? Enumerable.Empty<Currency>();
-        }
-        var currencies = await _context.Currencies.ToListAsync();
-
-        var cacheOptions = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
-        };
-        var serilizedData = JsonSerializer.Serialize(currencies);
-        await _cache.SetStringAsync(CurrenciesCacheKey, serilizedData, cacheOptions);
-
-        return currencies;
+        return await GetOrSetCacheAsync<Currency>(CurrenciesCacheKey, async () => 
+            await _context.Currencies.ToListAsync());
     }
 
     public async Task<Currency> GetCurrencyByIdAsync(Guid id)
