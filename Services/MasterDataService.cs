@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using WalletApp.Data;
+using WalletApp.Dtos;
 using WalletApp.Entities;
 
 namespace WalletApp.Services;
@@ -46,18 +47,36 @@ public class MasterDataService : IMasterDataService
     }
 
     ///////// CATEGORIES /////////
-    public async Task<IEnumerable<Category>> GetCategoriesAsync()
+    public async Task<IEnumerable<CategoryResponseDto>> GetCategoriesAsync()
     {
-        return await GetOrSetCacheAsync<Category>(CategoriesCacheKey, async () =>
-            await _context.Categories.Include(c => c.ParentCategory).ToListAsync());
+        return await GetOrSetCacheAsync<CategoryResponseDto>(CategoriesCacheKey, async () =>
+            await _context.Categories
+                .AsNoTracking() // just reading
+                .Select(c => new CategoryResponseDto
+                (
+                    c.Id,
+                    c.Name,
+                    c.Icon,
+                    c.CreatedAt,
+                    c.ParentCategory != null ? new SimpleLookupDto(c.ParentCategory.Id, c.ParentCategory.Name) : null
+                ))
+                .ToListAsync());
     }
 
-    public async Task<Category> GetCategoryByIdAsync(Guid id)
+    public async Task<CategoryResponseDto> GetCategoryByIdAsync(Guid id)
     {
         var category = await _context.Categories
-            .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Id == id);
-        if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
+            .AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => new CategoryResponseDto(
+                c.Id,
+                c.Name,
+                c.Icon,
+                c.CreatedAt,
+                c.ParentCategory != null ? new SimpleLookupDto(c.ParentCategory.Id, c.ParentCategory.Name) : null
+            ))
+            .FirstOrDefaultAsync();
+        if (category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
         return category;
     }
 
@@ -65,7 +84,7 @@ public class MasterDataService : IMasterDataService
     {
         var searchName = category.Name.ToLowerInvariant();
         var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == searchName);
-        if(exists) throw new ArgumentException($"'{category.Name}' already exists.");
+        if (exists) throw new ArgumentException($"'{category.Name}' already exists.");
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
@@ -79,16 +98,16 @@ public class MasterDataService : IMasterDataService
     public async Task<Category> UpdateCategoryAsync(Guid id, Category updatedCategory)
     {
         var category = await _context.Categories.FindAsync(id);
-        if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
+        if (category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
 
         var newName = updatedCategory.Name.ToLowerInvariant();
         var currentName = category.Name.ToLowerInvariant();
-        
+
         // if name changed, check if it's already in use
-        if(currentName != newName)
+        if (currentName != newName)
         {
             var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == newName && c.Id != id);
-            if(exists) throw new ArgumentException($"'{updatedCategory.Name}' already exists.");
+            if (exists) throw new ArgumentException($"'{updatedCategory.Name}' already exists.");
         }
 
         category.Name = updatedCategory.Name;
@@ -104,20 +123,20 @@ public class MasterDataService : IMasterDataService
     public async Task DeleteCategoryAsync(Guid id)
     {
         bool hasTransactions = await _context.Transactions.AnyAsync(t => t.CategoryId == id);
-        if(hasTransactions)
+        if (hasTransactions)
             throw new InvalidOperationException("There are transactions tied to this category. Move them to another category before delete.");
-        
+
         bool hasChildCategories = await _context.Categories.AnyAsync(c => c.ParentCategoryId == id);
-        if(hasChildCategories)
+        if (hasChildCategories)
             throw new InvalidOperationException("This category has sub-categories! Delete or update them first.");
 
         bool isDefaultMerchantCategory = await _context.Merchants.AnyAsync(m => m.DefaultCategoryId == id);
-        if(isDefaultMerchantCategory)
+        if (isDefaultMerchantCategory)
             throw new InvalidOperationException("This category has been set to be default for some merchants. Update them first.");
 
         var category = await _context.Categories.FindAsync(id);
-        if(category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
-        
+        if (category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
+
         _context.Categories.Remove(category);
         await _context.SaveChangesAsync();
 
@@ -126,19 +145,34 @@ public class MasterDataService : IMasterDataService
     }
 
     ///////// MERCHANTS /////////
-    public async Task<IEnumerable<Merchant>> GetMerchantsAsync()
+    public async Task<IEnumerable<MerchantResponseDto>> GetMerchantsAsync()
     {
-        return await GetOrSetCacheAsync<Merchant>(MerchantsCacheKey, async () =>
-            await _context.Merchants.Include(m => m.DefaultCategory).ToListAsync());
+        return await GetOrSetCacheAsync<MerchantResponseDto>(MerchantsCacheKey, async () =>
+            await _context.Merchants
+                .AsNoTracking()
+                .Select(m => new MerchantResponseDto(
+                    m.Id,
+                    m.Name,
+                    m.CreatedAt,
+                    m.DefaultCategory != null ? new SimpleLookupDto(m.DefaultCategory.Id, m.DefaultCategory.Name) : null
+                ))
+                .ToListAsync());
     }
 
-    public async Task<Merchant> GetMerchantByIdAsync(Guid id)
+    public async Task<MerchantResponseDto> GetMerchantByIdAsync(Guid id)
     {
         var merchant = await _context.Merchants
-            .Include(m => m.DefaultCategory)
-            .FirstOrDefaultAsync(m => m.Id == id);
-        
-        if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
+            .AsNoTracking()
+            .Where(m => m.Id == id)
+            .Select(m => new MerchantResponseDto(
+                m.Id,
+                m.Name,
+                m.CreatedAt,
+                m.DefaultCategory != null ? new SimpleLookupDto(m.DefaultCategory.Id, m.DefaultCategory.Name) : null
+            ))
+            .FirstOrDefaultAsync();
+
+        if (merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
         return merchant;
     }
 
@@ -146,7 +180,7 @@ public class MasterDataService : IMasterDataService
     {
         var searchName = merchant.Name.ToLowerInvariant();
         var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == searchName);
-        if(exists) throw new ArgumentException($"'{merchant.Name}' already exists.");
+        if (exists) throw new ArgumentException($"'{merchant.Name}' already exists.");
 
         _context.Merchants.Add(merchant);
         await _context.SaveChangesAsync();
@@ -159,15 +193,15 @@ public class MasterDataService : IMasterDataService
     public async Task<Merchant> UpdateMerchantAsync(Guid id, Merchant updatedMerchant)
     {
         var merchant = await _context.Merchants.FindAsync(id);
-        if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
+        if (merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
 
         var newName = updatedMerchant.Name.ToLowerInvariant();
         var currentName = merchant.Name.ToLowerInvariant();
-        
-        if(currentName != newName)
+
+        if (currentName != newName)
         {
             var exists = await _context.Merchants.AnyAsync(m => m.Name.ToLower() == newName && m.Id != id);
-            if(exists) throw new ArgumentException($"'{updatedMerchant.Name}' already exists.");
+            if (exists) throw new ArgumentException($"'{updatedMerchant.Name}' already exists.");
         }
 
         merchant.Name = updatedMerchant.Name;
@@ -182,10 +216,10 @@ public class MasterDataService : IMasterDataService
     public async Task DeleteMerchantAsync(Guid id)
     {
         bool isInUse = await _context.Transactions.AnyAsync(t => t.MerchantId == id);
-        if(isInUse) throw new InvalidOperationException("There are transactions tied to this merchant. Clear them before delete.");
-        
+        if (isInUse) throw new InvalidOperationException("There are transactions tied to this merchant. Clear them before delete.");
+
         var merchant = await _context.Merchants.FindAsync(id);
-        if(merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
+        if (merchant is null) throw new KeyNotFoundException($"Merchant not found. ID: {id}");
 
         _context.Merchants.Remove(merchant);
         await _context.SaveChangesAsync();
@@ -196,23 +230,23 @@ public class MasterDataService : IMasterDataService
     ///////// COUNTRIES /////////
     public async Task<IEnumerable<Country>> GetCountriesAsync()
     {
-        return await GetOrSetCacheAsync<Country>(CountriesCacheKey, async () => 
+        return await GetOrSetCacheAsync<Country>(CountriesCacheKey, async () =>
             await _context.Countries.ToListAsync());
     }
 
     public async Task<Country> GetCountryByIdAsync(Guid id)
     {
         var country = await _context.Countries.FindAsync(id);
-        if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
+        if (country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
         return country;
     }
 
     public async Task<Country> CreateCountryAsync(Country country)
     {
         var searchName = country.Name.ToLowerInvariant();
-        var exists = await _context.Countries.AnyAsync(c=> c.Name.ToLower() == searchName);
-        if(exists) throw new ArgumentException($"'{country.Name}' already exists.");
-        
+        var exists = await _context.Countries.AnyAsync(c => c.Name.ToLower() == searchName);
+        if (exists) throw new ArgumentException($"'{country.Name}' already exists.");
+
         _context.Countries.Add(country);
         await _context.SaveChangesAsync();
 
@@ -224,17 +258,17 @@ public class MasterDataService : IMasterDataService
     public async Task<Country> UpdateCountryAsync(Guid id, Country updatedCountry)
     {
         var country = await _context.Countries.FindAsync(id);
-        if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
+        if (country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
 
         var newNameLower = updatedCountry.Name.ToLowerInvariant();
         var newCodeLower = updatedCountry.Code.ToLowerInvariant();
 
-        if(country.Name.ToLower() != newNameLower || country.Code.ToLower() != newCodeLower)
+        if (country.Name.ToLower() != newNameLower || country.Code.ToLower() != newCodeLower)
         {
             var exists = await _context.Countries.AnyAsync(c =>
                 (c.Name.ToLower() == newNameLower || c.Code.ToLower() == newCodeLower) && c.Id != id);
-            
-            if(exists) throw new ArgumentException($"Country name or code is already in use.");
+
+            if (exists) throw new ArgumentException($"Country name or code is already in use.");
         }
 
         country.Name = updatedCountry.Name;
@@ -249,10 +283,10 @@ public class MasterDataService : IMasterDataService
     public async Task DeleteCountryAsync(Guid id)
     {
         bool isInUse = await _context.Transactions.AnyAsync(t => t.CountryId == id);
-        if(isInUse) throw new InvalidOperationException("There are transactions tied to this country. Update them before delete.");
-        
+        if (isInUse) throw new InvalidOperationException("There are transactions tied to this country. Update them before delete.");
+
         var country = await _context.Countries.FindAsync(id);
-        if(country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
+        if (country is null) throw new KeyNotFoundException($"Country not found. ID: {id}");
 
         _context.Countries.Remove(country);
         await _context.SaveChangesAsync();
@@ -263,22 +297,22 @@ public class MasterDataService : IMasterDataService
     ///////// CURRENCIES /////////
     public async Task<IEnumerable<Currency>> GetCurrenciesAsync()
     {
-        return await GetOrSetCacheAsync<Currency>(CurrenciesCacheKey, async () => 
+        return await GetOrSetCacheAsync<Currency>(CurrenciesCacheKey, async () =>
             await _context.Currencies.ToListAsync());
     }
 
     public async Task<Currency> GetCurrencyByIdAsync(Guid id)
     {
         var currency = await _context.Currencies.FindAsync(id);
-        if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
+        if (currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
         return currency;
     }
 
     public async Task<Currency> CreateCurrencyAsync(Currency currency)
     {
         currency.Code = currency.Code.ToUpper();
-        var exists = await _context.Currencies.AnyAsync(c=> c.Code == currency.Code);
-        if(exists) throw new ArgumentException($"'{currency.Code}' already exists.");
+        var exists = await _context.Currencies.AnyAsync(c => c.Code == currency.Code);
+        if (exists) throw new ArgumentException($"'{currency.Code}' already exists.");
 
         _context.Currencies.Add(currency);
         await _context.SaveChangesAsync();
@@ -291,14 +325,14 @@ public class MasterDataService : IMasterDataService
     public async Task<Currency> UpdateCurrencyAsync(Guid id, Currency updatedCurrency)
     {
         var currency = await _context.Currencies.FindAsync(id);
-        if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
+        if (currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
 
         var newCodeUpper = updatedCurrency.Code.ToUpper();
 
-        if(currency.Code.ToUpper() != newCodeUpper)
+        if (currency.Code.ToUpper() != newCodeUpper)
         {
             var exists = await _context.Currencies.AnyAsync(c => c.Code.ToUpper() == newCodeUpper && c.Id != id);
-            if(exists) throw new ArgumentException($"'{newCodeUpper}' already exists.");
+            if (exists) throw new ArgumentException($"'{newCodeUpper}' already exists.");
         }
 
         currency.Name = updatedCurrency.Name;
@@ -314,10 +348,10 @@ public class MasterDataService : IMasterDataService
     public async Task DeleteCurrencyAsync(Guid id)
     {
         bool isInUse = await _context.Transactions.AnyAsync(t => t.CurrencyId == id);
-        if(isInUse) throw new InvalidOperationException("There are transactions with this currency. Update them first.");
-        
+        if (isInUse) throw new InvalidOperationException("There are transactions with this currency. Update them first.");
+
         var currency = await _context.Currencies.FindAsync(id);
-        if(currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
+        if (currency is null) throw new KeyNotFoundException($"Currency not found. ID: {id}");
 
         _context.Currencies.Remove(currency);
         await _context.SaveChangesAsync();

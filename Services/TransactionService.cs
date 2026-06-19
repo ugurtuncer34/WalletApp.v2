@@ -119,7 +119,7 @@ public class TransactionService : ITransactionService
     {
         // Category (Mandatory)
         var allCategories = await _masterDataService.GetCategoriesAsync(); // from cache
-        Category? targetCategory;
+        CategoryResponseDto? targetCategory;
 
         if (request.CategoryId == null || request.CategoryId == Guid.Empty) // if(request.CategoryId.GetValueOrDefault() == Guid.Empty)
         {
@@ -133,7 +133,7 @@ public class TransactionService : ITransactionService
         }
 
         // Merchant (Optional)
-        Merchant? targetMerchant = null;
+        MerchantResponseDto? targetMerchant = null;
         if (request.MerchantId.HasValue && request.MerchantId.Value != Guid.Empty)
         {
             var allMerchants = await _masterDataService.GetMerchantsAsync(); // from cache
@@ -230,7 +230,7 @@ public class TransactionService : ITransactionService
         var allCategories = await _masterDataService.GetCategoriesAsync(); // from cache
 
         // Merchant
-        Merchant? matchedMerchant = null;
+        MerchantResponseDto? matchedMerchant = null;
         int earliestIndex = int.MaxValue;
         int matchedLength = -1;
 
@@ -252,11 +252,14 @@ public class TransactionService : ITransactionService
             }
         }
 
-        Category? targetCategory = null;
+        CategoryResponseDto? targetCategory = null;
 
         if (matchedMerchant != null)
         {
-            targetCategory = matchedMerchant.DefaultCategory;
+            if(matchedMerchant.DefaultCategory != null)
+            {
+                targetCategory = allCategories.FirstOrDefault(c => c.Id == matchedMerchant.DefaultCategory.Id);
+            }
 
             processingText = processingText.Remove(earliestIndex, matchedLength);
         }

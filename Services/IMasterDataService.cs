@@ -1,3 +1,4 @@
+using WalletApp.Dtos;
 using WalletApp.Entities;
 
 namespace WalletApp.Services;
@@ -5,15 +6,15 @@ namespace WalletApp.Services;
 public interface IMasterDataService
 {
     // Categories
-    Task<IEnumerable<Category>> GetCategoriesAsync();
-    Task<Category> GetCategoryByIdAsync(Guid id);
+    Task<IEnumerable<CategoryResponseDto>> GetCategoriesAsync();
+    Task<CategoryResponseDto> GetCategoryByIdAsync(Guid id);
     Task<Category> CreateCategoryAsync(Category category);
     Task<Category> UpdateCategoryAsync(Guid id, Category category);
     Task DeleteCategoryAsync(Guid id);
     
     // Merchants
-    Task<IEnumerable<Merchant>> GetMerchantsAsync();
-    Task<Merchant> GetMerchantByIdAsync(Guid id);
+    Task<IEnumerable<MerchantResponseDto>> GetMerchantsAsync();
+    Task<MerchantResponseDto> GetMerchantByIdAsync(Guid id);
     Task<Merchant> CreateMerchantAsync(Merchant merchant);
     Task<Merchant> UpdateMerchantAsync(Guid id, Merchant merchant);
     Task DeleteMerchantAsync(Guid id);
