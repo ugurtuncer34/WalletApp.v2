@@ -111,7 +111,7 @@ builder.Services.AddSwaggerGen(c =>
 // Cors
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
             "http://localhost:3000",
@@ -136,7 +136,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors();
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 
