@@ -32,7 +32,23 @@ public class TransactionService : ITransactionService
 
         if (queryParams.CategoryId.HasValue)
         {
-            query = query.Where(t => t.CategoryId == queryParams.CategoryId.Value);
+            var targetCatId = queryParams.CategoryId.Value;
+
+            var allCategories = await _masterDataService.GetCategoriesAsync();
+            var childIds = allCategories
+                .Where(c => c.ParentCategory?.Id == targetCatId)
+                .Select(c => c.Id)
+                .ToList();
+
+            if (childIds.Any())
+            {
+                childIds.Add(targetCatId);
+                query = query.Where(t => childIds.Contains(t.CategoryId));
+            } 
+            else
+            {
+                query = query.Where(t => t.CategoryId == targetCatId);
+            }
         }
 
         if (queryParams.MerchantId.HasValue)
@@ -47,7 +63,7 @@ public class TransactionService : ITransactionService
 
         if (queryParams.EndDate.HasValue)
         {
-            query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value);
+            query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value.AddDays(1));
         }
 
         if (queryParams.CountryId.HasValue)

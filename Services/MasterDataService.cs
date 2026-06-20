@@ -86,6 +86,16 @@ public class MasterDataService : IMasterDataService
         var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == searchName);
         if (exists) throw new ArgumentException($"'{category.Name}' already exists.");
 
+        if (category.ParentCategoryId.HasValue)
+        {
+            var parentCategory = await _context.Categories.FindAsync(category.ParentCategoryId.Value);
+            if(parentCategory is null)
+                throw new KeyNotFoundException("Parent category not found.");
+            
+            if(parentCategory.ParentCategoryId.HasValue)
+                throw new ArgumentException("Category hierarchy can have 2 levels max. A child category cannot be tied to a child category");
+        }
+
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
 
@@ -99,6 +109,16 @@ public class MasterDataService : IMasterDataService
     {
         var category = await _context.Categories.FindAsync(id);
         if (category is null) throw new KeyNotFoundException($"Category not found. ID: {id}");
+
+        if (category.ParentCategoryId.HasValue)
+        {
+            var parentCategory = await _context.Categories.FindAsync(category.ParentCategoryId.Value);
+            if(parentCategory is null)
+                throw new KeyNotFoundException("Parent category not found.");
+            
+            if(parentCategory.ParentCategoryId.HasValue)
+                throw new ArgumentException("Category hierarchy can have 2 levels max. A child category cannot be tied to a child category");
+        }
 
         var newName = updatedCategory.Name.ToLowerInvariant();
         var currentName = category.Name.ToLowerInvariant();
