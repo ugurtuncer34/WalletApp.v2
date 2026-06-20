@@ -40,6 +40,7 @@ public class AdminController : ControllerBase
         return Ok(masterData);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("seed-master-data")]
     public async Task<IActionResult> SeedMasterData(SeedMasterDataRequest request)
     {

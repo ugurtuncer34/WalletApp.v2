@@ -25,6 +25,10 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RegisterAsync(UserLoginRequest request)
     {
+        var allowRegistration = _configuration.GetValue<bool>("AllowRegistration", false); // default false
+        if(!allowRegistration)
+            throw new UnauthorizedAccessException("System is closed for new registrations.");
+        
         var userExists = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
         if(userExists) throw new ArgumentException("Username already taken.");
 
