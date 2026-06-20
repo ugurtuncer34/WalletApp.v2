@@ -60,8 +60,11 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpDelete("me")]
-    public async Task<IActionResult> DeleteAccount()
+    public async Task<IActionResult> DeleteAccount(DeleteAccountRequest request)
     {
+        if(request.ConfirmationText != "DELETE_ACCOUNT")
+            return BadRequest("Delete account confirmation text is missing. Please confirm by adding 'DELETE_ACCOUNT' to body.");
+        
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var jtiClaim = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
 

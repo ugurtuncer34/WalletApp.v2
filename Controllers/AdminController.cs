@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Data;
+using WalletApp.Dtos;
 using WalletApp.Entities;
 using WalletApp.Services;
 
@@ -40,8 +41,15 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("seed-master-data")]
-    public async Task<IActionResult> SeedMasterData()
+    public async Task<IActionResult> SeedMasterData(SeedMasterDataRequest request)
     {
+        if(request.Passphrase != "DELETE_APPROVE")
+            return BadRequest("Security breach: Missing confirmation key!");
+
+        var isDbPopulated = await _context.Categories.AnyAsync();
+        if(isDbPopulated && !request.ForceOverWrite)
+            return BadRequest("DB is already populated. If you still want to overwrite, send ForceOverwrite value true.");
+        
         // RESET MASTER DATA 
         _context.Merchants.RemoveRange(_context.Merchants);
         _context.Categories.RemoveRange(_context.Categories);
