@@ -492,8 +492,8 @@ $RECYCLE.BIN/
 # Ignore seed data
 seedData.json
 
-# Special category rule engine
-category-rules.json
+# # Special category rule engine
+# category-rules.json
 
 # Serilog logs
 Logs/
