@@ -9,3 +9,5 @@ public record CategoryResponseDto(
     DateTime CreatedAt,
     SimpleLookupDto? ParentCategory
 );
+
+public record CategoryRuleDto(Guid Id, string Keyword, Guid CategoryId);

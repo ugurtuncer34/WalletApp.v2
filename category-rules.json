@@ -16,7 +16,9 @@
         "bakkal",
         "manav",
         "bonveno",
-        "süpermarket"
+        "süpermarket",
+        "kasap",
+        "manav"
     ],
     "DİĞER ALIŞVERİŞ": [
         "amazon",
@@ -75,14 +77,16 @@
         "mobilya"
     ],
     "TEMEL İHTİYAÇ": [
+        "tuvalet",
+        "su",
+        "temizlik"
+    ],
+    "KOZMETİK": [
         "rossmann",
         "gratis",
         "watsons",
         "ihtiyaç",
-        "kozmetik",
-        "tuvalet",
-        "su",
-        "temizlik"
+        "kozmetik"
     ],
     "YEMEK": [
         "mcdonalds",

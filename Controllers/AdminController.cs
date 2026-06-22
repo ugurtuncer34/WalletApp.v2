@@ -44,13 +44,13 @@ public class AdminController : ControllerBase
     [HttpPost("seed-master-data")]
     public async Task<IActionResult> SeedMasterData(SeedMasterDataRequest request)
     {
-        if(request.Passphrase != "DELETE_APPROVE")
+        if (request.Passphrase != "DELETE_APPROVE")
             return BadRequest("Security breach: Missing confirmation key!");
 
         var isDbPopulated = await _context.Categories.AnyAsync();
-        if(isDbPopulated && !request.ForceOverWrite)
+        if (isDbPopulated && !request.ForceOverWrite)
             return BadRequest("DB is already populated. If you still want to overwrite, send ForceOverwrite value true.");
-        
+
         // RESET MASTER DATA 
         _context.Merchants.RemoveRange(_context.Merchants);
         _context.Categories.RemoveRange(_context.Categories);
@@ -81,5 +81,343 @@ public class AdminController : ControllerBase
         }
 
         return Ok(new { Message = "Master data seeded safely!" });
+    }
+
+    [HttpPost("seed-category-rules")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SeedCategoryRules()
+    {
+        // Original json
+        string jsonContent = @"{
+            ""MARKET / GIDA"": [
+        ""file"",
+        ""şok"",
+        ""market"",
+        ""carrefour"",
+        ""migros"",
+        ""a101"",
+        ""aldi"",
+        ""lidl"",
+        ""kaufland"",
+        ""netto"",
+        ""edeka"",
+        ""tesco"",
+        ""peynirci"",
+        ""bakkal"",
+        ""manav"",
+        ""bonveno"",
+        ""süpermarket"",
+        ""kasap"",
+        ""manav""
+    ],
+    ""DİĞER ALIŞVERİŞ"": [
+        ""amazon"",
+        ""trendyol"",
+        ""hepsiburada"",
+        ""çiçek"",
+        ""çiçeksepeti"",
+        ""duty free"",
+        ""tekel"",
+        ""terea"",
+        ""sigara"",
+        ""marlboro"",
+        ""alkol"",
+        ""tobacco"",
+        ""kiosk""
+    ],
+    ""GİYİM & AKSESUAR"": [
+        ""oysho"",
+        ""decathlon"",
+        ""columbia"",
+        ""boyner"",
+        ""zara"",
+        ""h&m"",
+        ""calvin klein"",
+        ""guess"",
+        ""jack jones"",
+        ""helly hensen"",
+        ""superstep"",
+        ""office shoes"",
+        ""america today"",
+        ""giyim"",
+        ""kıyafet"",
+        ""ayakkabı"",
+        ""sneaksup"",
+        ""bijuteri""
+    ],
+    ""TEKNOLOJİ"": [
+        ""teknoloji"",
+        ""elektronik"",
+        ""media markt"",
+        ""bilgisayar"",
+        ""telefon"",
+        ""apple""
+    ],
+    ""EV & YAŞAM ALANI"": [
+        ""ikea"",
+        ""bauhaus"",
+        ""koçtaş"",
+        ""işbir"",
+        ""halı yıkama"",
+        ""su arıtma"",
+        ""ev"",
+        ""dekorasyon"",
+        ""avize"",
+        ""led"",
+        ""mobilya""
+    ],
+    ""TEMEL İHTİYAÇ"": [
+        ""tuvalet"",
+        ""su"",
+        ""temizlik""
+    ],
+    ""KOZMETİK"": [
+        ""rossmann"",
+        ""gratis"",
+        ""watsons"",
+        ""ihtiyaç"",
+        ""kozmetik""
+    ],
+    ""YEMEK"": [
+        ""mcdonalds"",
+        ""burger"",
+        ""kebap"",
+        ""pizza"",
+        ""yemek"",
+        ""restoran"",
+        ""börek"",
+        ""tatlı"",
+        ""muhallebicisi"",
+        ""döner"",
+        ""popeyes"",
+        ""lahmacun"",
+        ""langoş"",
+        ""şinitzel"",
+        ""five guys"",
+        ""ciğer"",
+        ""simit"",
+        ""atıştırmalık"",
+        ""büfe"",
+        ""baklava"",
+        ""kestane""
+    ],
+    ""KAHVE"": [
+        ""coffee"",
+        ""told"",
+        ""kahve"",
+        ""espressolab"",
+        ""cafe"",
+        ""starbucks"",
+        ""boost"",
+        ""gloria"",
+        ""caribou"",
+        ""viyana"",
+        ""make me joi"",
+        ""sanat""
+    ],
+    ""EVCİL HAYVAN"": [
+        ""veteriner"",
+        ""köpek"",
+        ""acana"",
+        ""milky"",
+        ""mama"",
+        ""pet"",
+        ""tierarzt"",
+        ""fressnapf"",
+        ""zoo""
+    ],
+    ""KİŞİSEL BAKIM"": [
+        ""berber"",
+        ""kuaför"",
+        ""tıraş"",
+        ""bakım"",
+        ""cacel"",
+        ""sir barber""
+    ],
+    ""SAĞLIK"": [
+        ""eczane"",
+        ""hastane"",
+        ""doktor"",
+        ""kolan"",
+        ""sağlık"",
+        ""ilaç"",
+        ""muayene"",
+        ""candaş""
+    ],
+    ""KİRA & AİDAT"": [
+        ""kira"",
+        ""aidat"",
+        ""apartman"",
+        ""jeneratör"",
+        ""site""
+    ],
+    ""FATURA"": [
+        ""iski"",
+        ""igdaş"",
+        ""elektrik"",
+        ""doğalgaz"",
+        ""fatura""
+    ],
+    ""DİJİTAL ABONELİK"": [
+        ""youtube"",
+        ""spotify"",
+        ""hbo"",
+        ""prime"",
+        ""chatgpt"",
+        ""gemini"",
+        ""iptv"",
+        ""icloud"",
+        ""dijital"",
+        ""abonelik"",
+        ""üyelik"",
+        ""steam""
+    ],
+    ""İLETİŞİM"": [
+        ""turkcell"",
+        ""turknet"",
+        ""iletişim"",
+        ""vodafone"",
+        ""internet"",
+        ""gsm""
+    ],
+    ""ARABA"": [
+        ""nerex"",
+        ""tüvtürk"",
+        ""muayene"",
+        ""sigorta"",
+        ""araba"",
+        ""araç"",
+        ""kasko"",
+        ""otoban"",
+        ""vignet"",
+        ""osmangazi"",
+        ""köprü"",
+        ""hgs"",
+        ""ogs"",
+        ""yıkama"",
+        ""servis""
+    ],
+    ""YAKIT"": [
+        ""opet"",
+        ""mazot"",
+        ""benzin"",
+        ""shell"",
+        ""omv"",
+        ""yakıt"",
+        ""jet"",
+        ""lpg""
+    ],
+    ""OTOPARK"": [
+        ""otopark"",
+        ""vale""
+    ],
+    ""TOPLU TAŞIMA"": [
+        ""taksi"",
+        ""uçak"",
+        ""thy"",
+        ""istanbulkart"",
+        ""otobüs"",
+        ""tren"",
+        ""metro"",
+        ""havaist"",
+        ""gvb"",
+        ""pegasus"",
+        ""kamilkoç"",
+        ""omio"",
+        ""ulaşım""
+    ],
+    ""AİLE"": [
+        ""karım"",
+        ""karıma"",
+        ""çocuklar"",
+        ""aile"",
+        ""harçlık"",
+        ""nişan"",
+        ""düğün""
+    ],
+    ""MANEVİ"": [
+        ""sadaka"",
+        ""bağış"",
+        ""manevi""
+    ],
+    ""EĞLENCE / SOSYAL"": [
+        ""piyango"",
+        ""eğlence"",
+        ""tiyatro"",
+        ""bilet"",
+        ""bar"",
+        ""pub"",
+        ""konser"",
+        ""etkinlik""
+    ],
+    ""ENTELEKTÜEL"": [
+        ""kale"",
+        ""müze"",
+        ""entelektüel"",
+        ""kitap"",
+        ""louvre""
+    ],
+    ""KONAKLAMA / SEYAHAT"": [
+        ""airbnb"",
+        ""hotel"",
+        ""konaklama"",
+        ""otel"",
+        ""seyahat"",
+        ""tur"",
+        ""vize""
+    ],
+    ""DEVLET / VERGİ"": [
+        ""vergi"",
+        ""devlet"",
+        ""noter"",
+        ""harç"",
+        ""ceza""
+    ],
+    ""DİĞER"": [
+        ""diğer"",
+        ""kazıklanma"",
+        ""kaza"",
+        ""komisyon""
+    ],
+    ""FIRIN"": [
+        ""fırın"",
+        ""görele"",
+        ""panem""
+    ]
+        }";
+
+        var parsedRules = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
+        if (parsedRules == null) return BadRequest("JSON parse edilemedi.");
+
+        var dbCategories = await _context.Categories.ToListAsync();
+        int addedCount = 0; // Kaç kural ekledik sayalım
+
+        foreach (var rule in parsedRules)
+        {
+            // JSON'daki Key ile veritabanındaki kategori adını eşleştir
+            var category = dbCategories.FirstOrDefault(c => c.Name.ToUpperInvariant() == rule.Key.ToUpperInvariant());
+
+            if (category != null)
+            {
+                foreach (var keyword in rule.Value)
+                {
+                    // Eğer keyword zaten veritabanında yoksa ekle
+                    if (!await _context.CategoryRules.AnyAsync(cr => cr.Keyword == keyword))
+                    {
+                        _context.CategoryRules.Add(new CategoryRule
+                        {
+                            Id = Guid.NewGuid(),
+                            Keyword = keyword,
+                            CategoryId = category.Id
+                        });
+                        addedCount++;
+                    }
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { Message = $"{addedCount} new category rules added successfully." });
     }
 }

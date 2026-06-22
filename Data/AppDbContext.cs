@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Merchant> Merchants { get; set; }
     public DbSet<TransactionTag> TransactionTags { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<CategoryRule> CategoryRules { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) // special options
     {

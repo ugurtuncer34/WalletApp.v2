@@ -44,7 +44,7 @@ public class TransactionService : ITransactionService
             {
                 childIds.Add(targetCatId);
                 query = query.Where(t => childIds.Contains(t.CategoryId));
-            } 
+            }
             else
             {
                 query = query.Where(t => t.CategoryId == targetCatId);
@@ -272,7 +272,7 @@ public class TransactionService : ITransactionService
 
         if (matchedMerchant != null)
         {
-            if(matchedMerchant.DefaultCategory != null)
+            if (matchedMerchant.DefaultCategory != null)
             {
                 targetCategory = allCategories.FirstOrDefault(c => c.Id == matchedMerchant.DefaultCategory.Id);
             }
@@ -281,58 +281,27 @@ public class TransactionService : ITransactionService
         }
         else
         {
-            try
+            var categoryRules = await _masterDataService.GetCategoryRulesAsync();
+
+            var matchedRule = categoryRules
+                .OrderByDescending(r => r.Keyword.Length)
+                .FirstOrDefault(r => processingTextLower.Contains(r.Keyword.ToLower(_trCulture), StringComparison.Ordinal));
+
+            if (matchedRule != null)
             {
-                var cacheKey = "category_rules_json";
-                var cachedRules = await _cache.GetStringAsync(cacheKey);
-                Dictionary<string, List<string>>? categoryRules = null;
+                targetCategory = allCategories.FirstOrDefault(c => c.Id == matchedRule.CategoryId);
 
-                if (!string.IsNullOrEmpty(cachedRules))
+                int ruleIndex = processingTextLower.IndexOf(matchedRule.Keyword.ToLower(_trCulture), StringComparison.Ordinal);
+                if(ruleIndex >= 0)
                 {
-                    // Read from RAM if exists
-                    categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(cachedRules);
+                    processingText = processingText.Remove(ruleIndex, matchedRule.Keyword.Length);
                 }
-                else
-                {
-                    // Read from disc if not exists in RAM
-                    var rulesFilePath = "category-rules.json";
-                    if (!File.Exists(rulesFilePath)) rulesFilePath = "category-rules.example.json";
-
-                    if (File.Exists(rulesFilePath))
-                    {
-                        var jsonContent = await File.ReadAllTextAsync(rulesFilePath);
-                        categoryRules = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(jsonContent);
-
-                        // Write to RAM for 24 hours
-                        var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) };
-                        await _cache.SetStringAsync(cacheKey, jsonContent, cacheOptions);
-                    }
-                }
-
-                // Conduct rules
-                if (categoryRules != null)
-                {
-                    var currentTextLower = processingText.ToLower(_trCulture);
-                    foreach (var rule in categoryRules)
-                    {
-                        if (rule.Value.Any(keyword => currentTextLower.Contains(keyword.ToLower(_trCulture), StringComparison.Ordinal)))
-                        {
-                            var ruleKeyUpper = rule.Key.ToUpperInvariant();
-                            targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpperInvariant() == ruleKeyUpper);
-                            break;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Rule engine error. Saving to the category 'Other'");
             }
         }
 
         if (targetCategory == null)
         {
-            targetCategory = allCategories.FirstOrDefault(c => c.Name.ToUpper() == "DİĞER");
+            targetCategory = allCategories.FirstOrDefault(c => c.Name.Equals("DİĞER", StringComparison.OrdinalIgnoreCase));
         }
         if (targetCategory == null) throw new ArgumentException("There is no category named 'OTHER' in the system");
 

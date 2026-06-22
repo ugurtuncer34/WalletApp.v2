@@ -11,6 +11,7 @@ public interface IMasterDataService
     Task<Category> CreateCategoryAsync(Category category);
     Task<Category> UpdateCategoryAsync(Guid id, Category category);
     Task DeleteCategoryAsync(Guid id);
+    Task<IEnumerable<CategoryRuleDto>> GetCategoryRulesAsync();
     
     // Merchants
     Task<IEnumerable<MerchantResponseDto>> GetMerchantsAsync();

@@ -164,6 +164,17 @@ public class MasterDataService : IMasterDataService
         await _cache.RemoveAsync(CategoriesCacheKey);
     }
 
+    public async Task<IEnumerable<CategoryRuleDto>> GetCategoryRulesAsync()
+    {
+        return await GetOrSetCacheAsync<CategoryRuleDto>("category_rules_cache", async () =>
+        {
+            return await _context.CategoryRules
+                .AsNoTracking()
+                .Select(cr => new CategoryRuleDto(cr.Id, cr.Keyword, cr.CategoryId))
+                .ToListAsync();
+        });
+    }
+
     ///////// MERCHANTS /////////
     public async Task<IEnumerable<MerchantResponseDto>> GetMerchantsAsync()
     {
