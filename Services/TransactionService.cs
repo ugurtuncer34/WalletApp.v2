@@ -290,6 +290,16 @@ public class TransactionService : ITransactionService
             if (matchedRule != null)
             {
                 targetCategory = allCategories.FirstOrDefault(c => c.Id == matchedRule.CategoryId);
+
+                int ruleIndex = processingTextLower.IndexOf(matchedRule.Keyword.ToLower(_trCulture), StringComparison.Ordinal);
+                if(ruleIndex >= 0)
+                {
+                    var tempText = processingText.Remove(ruleIndex, matchedRule.Keyword.Length).Trim();
+                    if (!string.IsNullOrWhiteSpace(tempText))
+                    {
+                        processingText = tempText;
+                    }
+                }
             }
         }
 
