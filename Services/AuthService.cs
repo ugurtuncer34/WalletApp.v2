@@ -150,7 +150,7 @@ public class AuthService : IAuthService
             issuer: _configuration.GetValue<string>("JwtSettings:Issuer"),
             audience: _configuration.GetValue<string>("JwtSettings:Audience"),
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("JwtSettings:ExpirationMinutes")),
+            expires: DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("JwtSettings:ExpirationMinutes", 1440)),
             signingCredentials: creds
         );
 
