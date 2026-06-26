@@ -16,6 +16,8 @@ public class Transaction : BaseEntity
     public Merchant? Merchant { get; set; }
     public Guid? CountryId { get; set; }
     public Country? Country { get; set; }
+    public Guid UserId { get; set; }
+    public User User { get; set; } = null!;
 
     // Many-to-many tags
     public ICollection<TransactionTag> TransactionTags { get; set; } = new List<TransactionTag>();
