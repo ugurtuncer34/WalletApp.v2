@@ -21,6 +21,14 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder); // first, initialize the base builder settings, then add my own below
 
+        // Configure hidden column 'xmin' as Shadow Property for concurrency token
+        modelBuilder.Entity<Transaction>()
+            .Property<uint>("Version") // Virtual column, only exists in DB, not in Entity
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .IsRowVersion()
+            .ValueGeneratedOnAddOrUpdate();
+
         // Primary Key of TransactionTag is the unification of TrxId and TagId
         // Same tag cannot be added to a trx twice
         modelBuilder.Entity<TransactionTag>()

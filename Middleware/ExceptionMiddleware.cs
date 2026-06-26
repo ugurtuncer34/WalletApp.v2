@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
 using WalletApp.Dtos;
 
 namespace WalletApp.Middleware;
@@ -39,13 +40,18 @@ public class ExceptionMiddleware
             ArgumentException => (int)HttpStatusCode.BadRequest,
             KeyNotFoundException => (int)HttpStatusCode.NotFound,
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
+            DbUpdateConcurrencyException => (int)HttpStatusCode.Conflict, // optimistic lock
             _ => (int)HttpStatusCode.InternalServerError
         };
+
+        var customMessage = exception is DbUpdateConcurrencyException
+            ? "This transaction has been updated by another user or device. Please refresh and try again."
+            : exception.Message;
 
         var response = new ErrorResponse
         {
             StatusCode = context.Response.StatusCode,
-            Message = exception.Message,
+            Message = customMessage,
             Details = env.IsDevelopment() ? exception.StackTrace?.ToString() : "An unexpected error occured."
         };
 
