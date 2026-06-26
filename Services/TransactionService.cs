@@ -13,22 +13,25 @@ namespace WalletApp.Services;
 public class TransactionService : ITransactionService
 {
     private readonly AppDbContext _context;
-    private readonly ILogger<TransactionService> _logger;
-    private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
     private readonly IMasterDataService _masterDataService;
-    private readonly IDistributedCache _cache;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
 
-    public TransactionService(AppDbContext context, ILogger<TransactionService> logger, IMasterDataService masterDataService, IDistributedCache cache)
+    public TransactionService(AppDbContext context, IMasterDataService masterDataService, ICurrentUserService currentUserService)
     {
         _context = context;
-        _logger = logger;
         _masterDataService = masterDataService;
-        _cache = cache;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
     {
         var query = _context.Transactions.AsQueryable();
+
+        //// No need for below query because all family member can see the family finance ////
+        // var query = _context.Transactions
+        //     .Where(t => t.UserId == _currentUserService.UserId)
+        //     .AsQueryable();
 
         if (queryParams.CategoryId.HasValue)
         {
@@ -199,7 +202,8 @@ public class TransactionService : ITransactionService
             CategoryId = targetCategory.Id,
             MerchantId = targetMerchant?.Id,
             CountryId = targetCountry.Id,
-            CurrencyId = targetCurrency.Id
+            CurrencyId = targetCurrency.Id,
+            UserId = _currentUserService.UserId
         };
 
         _context.Transactions.Add(transaction);
@@ -329,7 +333,8 @@ public class TransactionService : ITransactionService
             CategoryId = targetCategory.Id,
             MerchantId = matchedMerchant?.Id,
             CountryId = defaultCountry?.Id,
-            CurrencyId = defaultCurrency?.Id
+            CurrencyId = defaultCurrency?.Id,
+            UserId = _currentUserService.UserId
         };
 
         _context.Transactions.Add(transaction);
@@ -352,8 +357,10 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionResponse> UpdateTransactionAsync(Guid id, UpdateTransactionRequest request)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
-        if (transaction is null) throw new KeyNotFoundException($"Transaction not found. ID: {id}");
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == _currentUserService.UserId);
+        if (transaction is null) 
+            throw new KeyNotFoundException($"Transaction not found or does not belong to your user. Trx ID: {id}");
 
         var allCategories = await _masterDataService.GetCategoriesAsync();
         var allMerchants = await _masterDataService.GetMerchantsAsync();
@@ -428,9 +435,10 @@ public class TransactionService : ITransactionService
 
     public async Task DeleteTransactionAsync(Guid id)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
-        if (transaction is null)
-            throw new KeyNotFoundException($"Transaction not found. ID: {id}");
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == _currentUserService.UserId);
+        if (transaction is null) 
+            throw new KeyNotFoundException($"Transaction not found or does not belong to your user. Trx ID: {id}");
 
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
