@@ -96,7 +96,8 @@ public class TransactionService : ITransactionService
                 CategoryIcon = t.Category.Icon,
                 MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty,
                 CountryName = t.Country != null ? t.Country.Name : string.Empty,
-                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty
+                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty,
+                AddedBy = t.User.Username
             })
             .ToListAsync();
 
@@ -124,7 +125,8 @@ public class TransactionService : ITransactionService
                 CategoryIcon = t.Category.Icon,
                 MerchantName = t.Merchant != null ? t.Merchant.Name : string.Empty,
                 CountryName = t.Country != null ? t.Country.Name : string.Empty,
-                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty
+                CurrencySymbol = t.Currency != null ? t.Currency.Symbol : string.Empty,
+                AddedBy = t.User.Username
             })
             .FirstOrDefaultAsync();
 
@@ -220,7 +222,8 @@ public class TransactionService : ITransactionService
             CategoryIcon = targetCategory.Icon,
             MerchantName = targetMerchant?.Name,
             CountryName = targetCountry.Name,
-            CurrencySymbol = targetCurrency.Symbol
+            CurrencySymbol = targetCurrency.Symbol,
+            AddedBy = _currentUserService.Username
         };
     }
 
@@ -351,7 +354,8 @@ public class TransactionService : ITransactionService
             CategoryIcon = targetCategory.Icon,
             MerchantName = matchedMerchant?.Name ?? string.Empty,
             CountryName = defaultCountry?.Name ?? string.Empty,
-            CurrencySymbol = defaultCurrency?.Symbol ?? string.Empty
+            CurrencySymbol = defaultCurrency?.Symbol ?? string.Empty,
+            AddedBy = _currentUserService.Username
         };
     }
 
@@ -428,7 +432,8 @@ public class TransactionService : ITransactionService
             CategoryIcon = finalCategory?.Icon,
             MerchantName = finalMerchant?.Name,
             CountryName = finalCountry?.Name ?? string.Empty,
-            CurrencySymbol = finalCurrency?.Symbol ?? string.Empty
+            CurrencySymbol = finalCurrency?.Symbol ?? string.Empty,
+            AddedBy = string.Empty
         };
     }
 

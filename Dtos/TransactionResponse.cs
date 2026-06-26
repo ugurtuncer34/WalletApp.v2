@@ -12,6 +12,7 @@ public class TransactionResponse
     public string? MerchantName { get; set; }
     public string CurrencySymbol { get; set; } = string.Empty;
     public string CountryName { get; set; } = string.Empty;
+    public string AddedBy { get; set; } = string.Empty;
     // public List<TagResponse> Tags { get; set; } = new();
 }
 

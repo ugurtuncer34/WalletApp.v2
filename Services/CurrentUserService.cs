@@ -18,12 +18,22 @@ public class CurrentUserService : ICurrentUserService
             var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-            if(string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
             {
                 throw new UnauthorizedAccessException("User identity cannot be verified or invalid token.");
             }
 
             return userId;
+        }
+    }
+
+    public string Username
+    {
+        get
+        {
+            return _httpContextAccessor.HttpContext?.User?.FindFirstValue(JwtRegisteredClaimNames.UniqueName)
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name)
+                ?? string.Empty;
         }
     }
 }
