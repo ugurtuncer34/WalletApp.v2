@@ -7,6 +7,8 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
+using Hangfire;
+using Hangfire.PostgreSql;
 using WalletApp.Data;
 using WalletApp.Middleware;
 using WalletApp.Services;
@@ -76,6 +78,17 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
+// HANGFIRE Services
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(c => 
+        c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+
+// Start Hangfire server
+builder.Services.AddHangfireServer();
+
 builder.Services.AddControllers()
     .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
@@ -143,6 +156,9 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+// Public for now, Admin role control will be added
+app.UseHangfireDashboard();
 
 app.MapControllers();
 
