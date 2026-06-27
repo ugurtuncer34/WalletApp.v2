@@ -3,6 +3,7 @@ using WalletApp.Entities;
 using WalletApp.Dtos;
 using WalletApp.Services;
 using Microsoft.AspNetCore.Authorization;
+using WalletApp.Filters;
 
 namespace WalletApp.Controllers;
 
@@ -32,6 +33,7 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPost]
+    [Idempotency]
     public async Task<ActionResult<TransactionResponse>> PostTransaction(CreateTransactionRequest request)
     {
 
@@ -41,6 +43,7 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPost("quick-add")]
+    [Idempotency]
     public async Task<ActionResult<TransactionResponse>> QuickAddTransaction(QuickAddRequest request)
     {
 
