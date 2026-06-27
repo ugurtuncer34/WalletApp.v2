@@ -21,6 +21,7 @@ public class DashboardService : IDashboardService
         // Take all transactions from that month into RAM
         var monthTransactions = await _context.Transactions
             .Include(t => t.Category)
+                .ThenInclude(c => c.ParentCategory)
             .Include(t => t.Merchant)
             .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate)
             .OrderByDescending(t => t.TransactionDate)
@@ -30,29 +31,22 @@ public class DashboardService : IDashboardService
         {
             TotalMonthlyExpense = monthTransactions.Sum(t => t.Amount * (t.ExchangeRate ?? 1m)),
 
-            RecentTransactions = monthTransactions
-                .Take(5)
-                .Select(t => new TransactionResponse
-                {
-                    Id = t.Id,
-                    Date = t.TransactionDate,
-                    Amount = t.Amount,
-                    Description = t.Description,
-                    ExchangeRate = t.ExchangeRate,
-                    CategoryName = t.Category.Name,
-                    CategoryIcon = t.Category.Icon,
-                    MerchantName = t.Merchant?.Name ?? string.Empty,
-                    CountryName = t.Country?.Name ?? string.Empty,
-                    CurrencySymbol = t.Currency?.Symbol ?? string.Empty
-                })
-                .ToList(),
-
             CategoryDistribution = monthTransactions
-                .GroupBy(t => t.Category.Name)
-                .Select(g => new ChartDataDto
+                .GroupBy(t => t.Category.ParentCategory != null ? t.Category.ParentCategory.Name : t.Category.Name)
+                .Select(parentGroup => new ChartDataDto
                 {
-                    Label = g.Key,
-                    Value = g.Sum(t => t.Amount * (t.ExchangeRate ?? 1m))
+                    Label = parentGroup.Key,
+                    Value = parentGroup.Sum(t => t.Amount * (t.ExchangeRate ?? 1m)),
+                    // Group sub categories in between
+                    SubCategories = parentGroup
+                        .GroupBy(t => t.Category.Name)
+                        .Select(subGroup => new ChartDataDto
+                        {
+                            Label = subGroup.Key,
+                            Value = subGroup.Sum(t => t.Amount * (t.ExchangeRate ?? 1m))
+                        })
+                        .OrderByDescending(x => x.Value)
+                        .ToList()
                 })
                 .OrderByDescending(x => x.Value)
                 .ToList(),

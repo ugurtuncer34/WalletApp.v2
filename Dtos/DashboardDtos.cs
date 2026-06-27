@@ -13,6 +13,7 @@ public class ChartDataDto
 {
     public string Label { get; set; } = string.Empty;
     public decimal Value { get; set; }
+    public List<ChartDataDto> SubCategories { get; set; } = new List<ChartDataDto>();
 }
 
 public class DailyTrendDto
