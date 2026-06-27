@@ -1,0 +1,78 @@
+using Microsoft.EntityFrameworkCore;
+using WalletApp.Data;
+using WalletApp.Entities;
+using WalletApp.Enums;
+
+namespace WalletApp.Services;
+
+public interface ISubscriptionJobService
+{
+    Task ProcessRecurringTransactionAsync();
+}
+
+public class SubscriptionJobService : ISubscriptionJobService
+{
+    private readonly AppDbContext _context;
+    public SubscriptionJobService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task ProcessRecurringTransactionAsync()
+    {
+        var now = DateTime.UtcNow;
+        
+        var dueTransactions = await _context.RecurringTransactions
+            .Where(rt => rt.IsActive && rt.NextExecutionDate <= now)
+            .ToListAsync();
+        
+        if(!dueTransactions.Any())
+            return;
+        
+        var defaultCountry = await _context.Countries.FirstOrDefaultAsync(c => c.Code == "TR");
+        var defaultCurrency = await _context.Currencies.FirstOrDefaultAsync(c => c.Code == "TRY");
+
+        foreach(var rt in dueTransactions)
+        {
+            var transaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                UserId = rt.UserId,
+                CategoryId = rt.CategoryId,
+                MerchantId = rt.MerchantId,
+                Amount = rt.Amount,
+                Description = rt.Description ?? $"Otomatik Harcama: {rt.Name}",
+                TransactionDate = now,
+                ExchangeRate = 1m,
+                CountryId = defaultCountry?.Id ?? Guid.Empty,
+                CurrencyId = defaultCurrency?.Id ?? Guid.Empty
+            };
+
+            _context.Transactions.Add(transaction);
+
+            if (rt.IsInstallment)
+            {
+                rt.ProcessedInstallments = (rt.ProcessedInstallments ?? 0) + 1;
+
+                if(rt.TotalInstallments.HasValue && rt.ProcessedInstallments >= rt.TotalInstallments.Value)
+                {
+                    rt.IsActive = false;
+                }
+            }
+
+            if (rt.IsActive)
+            {
+                rt.NextExecutionDate = rt.Frequency switch
+                {
+                    RecurringFrequency.Daily => rt.NextExecutionDate.AddDays(1),
+                    RecurringFrequency.Weekly => rt.NextExecutionDate.AddDays(7),
+                    RecurringFrequency.Monthly => rt.NextExecutionDate.AddMonths(1),
+                    RecurringFrequency.Yearly => rt.NextExecutionDate.AddYears(1),
+                    _ => rt.NextExecutionDate.AddMonths(1)
+                };
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+}

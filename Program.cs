@@ -100,6 +100,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ISubscriptionJobService, SubscriptionJobService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -159,6 +160,12 @@ app.UseAuthorization();
 
 // Public for now, Admin role control will be added
 app.UseHangfireDashboard();
+// Hangfire timing
+RecurringJob.AddOrUpdate<ISubscriptionJobService>(
+    "Subscription_Expense_Task", // Task name for panel
+    job => job.ProcessRecurringTransactionAsync(), // Which task should run
+    Cron.Daily(1) // Every night UTC 1am
+);
 
 app.MapControllers();
 
