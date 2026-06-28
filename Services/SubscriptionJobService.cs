@@ -34,6 +34,10 @@ public class SubscriptionJobService : ISubscriptionJobService
 
         foreach(var rt in dueTransactions)
         {
+            string autoDescription = rt.IsInstallment
+                ? $"Taksit ({(rt.ProcessedInstallments ?? 0) + 1}/{rt.TotalInstallments}): {rt.Name}"
+                : $"Abonelik: {rt.Name}";
+                
             var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
@@ -41,7 +45,7 @@ public class SubscriptionJobService : ISubscriptionJobService
                 CategoryId = rt.CategoryId,
                 MerchantId = rt.MerchantId,
                 Amount = rt.Amount,
-                Description = rt.Description ?? $"Otomatik Harcama: {rt.Name}",
+                Description = string.IsNullOrWhiteSpace(rt.Description) ? autoDescription : rt.Description,
                 TransactionDate = now,
                 ExchangeRate = 1m,
                 CountryId = defaultCountry?.Id ?? Guid.Empty,

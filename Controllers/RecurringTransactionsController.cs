@@ -61,7 +61,7 @@ public class RecurringTransactionsController : ControllerBase
             CategoryId = request.CategoryId,
             MerchantId = request.MerchantId,
             Frequency = request.Frequency,
-            NextExecutionDate = request.StartDate, // first shot date for trigger
+            NextExecutionDate = request.StartDate.ToUniversalTime(), // first shot date for trigger
             IsActive = true,
             IsInstallment = request.IsInstallment,
             TotalInstallments = request.IsInstallment ? request.TotalInstallments : null,
