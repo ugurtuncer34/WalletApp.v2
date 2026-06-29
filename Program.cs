@@ -101,6 +101,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ISubscriptionJobService, SubscriptionJobService>();
+builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

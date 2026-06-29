@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Data;
 using WalletApp.Entities;
@@ -13,9 +14,11 @@ public interface ISubscriptionJobService
 public class SubscriptionJobService : ISubscriptionJobService
 {
     private readonly AppDbContext _context;
-    public SubscriptionJobService(AppDbContext context)
+    private readonly IDistributedCache _cache;
+    public SubscriptionJobService(AppDbContext context, IDistributedCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task ProcessRecurringTransactionAsync()
@@ -78,5 +81,7 @@ public class SubscriptionJobService : ISubscriptionJobService
         }
 
         await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync("recurring_trx_family");
     }
 }
