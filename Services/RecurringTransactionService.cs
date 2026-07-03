@@ -101,7 +101,7 @@ public class RecurringTransactionService : IRecurringTransactionService
             .FirstOrDefaultAsync(r => r.Id == id && r.UserId == _currentUserService.UserId);
 
         if (subscription is null)
-            throw new KeyNotFoundException("Abonelik bulunamadı veya bu aboneliği güncelleme yetkiniz yok.");
+            throw new KeyNotFoundException("Could not find subscription or does not belong to you.");
 
         subscription.Name = request.Name;
         subscription.Description = request.Description;
