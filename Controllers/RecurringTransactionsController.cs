@@ -34,6 +34,13 @@ public class RecurringTransactionsController : ControllerBase
         return Ok(new { Message = "Subscription / Installment created successfully.", Id = id });
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateSubscription(Guid id, UpdateRecurringRequest request)
+    {
+        await _recurringService.UpdateSubscriptionAsync(id, request);
+        return Ok(new { Message = "Subscription updated successfully." });
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> CancelSubscription(Guid id)
     {

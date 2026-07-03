@@ -55,7 +55,7 @@ public class RecurringTransactionService : IRecurringTransactionService
             })
             .ToListAsync();
 
-        // write to cache for 24 hours
+        // write to cache for 30 mins
         var cacheOptions = new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
@@ -91,6 +91,32 @@ public class RecurringTransactionService : IRecurringTransactionService
         await _cache.RemoveAsync(CacheKey);
 
         return recurringTransaction.Id;
+    }
+
+    public async Task UpdateSubscriptionAsync(Guid id, UpdateRecurringRequest request)
+    {
+        // Only the user who added can update
+        var subscription = await _context.RecurringTransactions
+            .FirstOrDefaultAsync(r => r.Id == id && r.UserId == _currentUserService.UserId);
+
+        if (subscription is null)
+            throw new KeyNotFoundException("Abonelik bulunamadı veya bu aboneliği güncelleme yetkiniz yok.");
+
+        subscription.Name = request.Name;
+        subscription.Description = request.Description;
+        subscription.Amount = request.Amount;
+        subscription.CategoryId = request.CategoryId;
+        subscription.MerchantId = request.MerchantId;
+        subscription.Frequency = request.Frequency;
+        subscription.NextExecutionDate = request.NextExecutionDate.ToUniversalTime();
+        
+        subscription.IsInstallment = request.IsInstallment;
+        subscription.TotalInstallments = request.IsInstallment ? request.TotalInstallments : null;
+
+        await _context.SaveChangesAsync();
+
+        // cache invalidation
+        await _cache.RemoveAsync(CacheKey);
     }
 
     public async Task CancelSubscriptionAsync(Guid id)
