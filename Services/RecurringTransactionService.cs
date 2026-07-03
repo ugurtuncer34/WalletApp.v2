@@ -43,6 +43,7 @@ public class RecurringTransactionService : IRecurringTransactionService
             {
                 Id = r.Id,
                 Name = r.Name,
+                Description = r.Description,
                 Amount = r.Amount,
                 Frequency = r.Frequency,
                 NextExecutionDate = r.NextExecutionDate,
