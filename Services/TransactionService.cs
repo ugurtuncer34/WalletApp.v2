@@ -15,13 +15,20 @@ public class TransactionService : ITransactionService
     private readonly AppDbContext _context;
     private readonly IMasterDataService _masterDataService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IExchangeRateService _exchangeRateService;
     private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
 
-    public TransactionService(AppDbContext context, IMasterDataService masterDataService, ICurrentUserService currentUserService)
+    public TransactionService(
+        AppDbContext context, 
+        IMasterDataService masterDataService, 
+        ICurrentUserService currentUserService,
+        IExchangeRateService exchangeRateService
+    )
     {
         _context = context;
         _masterDataService = masterDataService;
         _currentUserService = currentUserService;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
@@ -192,7 +199,8 @@ public class TransactionService : ITransactionService
         }
 
         // ExchangeRate
-        var finalExchangeRate = request.ExchangeRate ?? 1m;
+        var transactionDate = request.Date ?? DateTime.UtcNow;
+        var finalExchangeRate = await _exchangeRateService.GetExchangeRateAsync(targetCurrency.Code, transactionDate);
 
         var transaction = new Transaction
         {
@@ -200,7 +208,7 @@ public class TransactionService : ITransactionService
             TransactionDate = request.Date ?? DateTime.UtcNow,
             Amount = request.Amount,
             Description = request.Description,
-            ExchangeRate = finalExchangeRate,
+            ExchangeRate = finalExchangeRate, // retrieved from Go service, live or past rate depending on date
             CategoryId = targetCategory.Id,
             MerchantId = targetMerchant?.Id,
             CountryId = targetCountry.Id,

@@ -102,6 +102,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ISubscriptionJobService, SubscriptionJobService>();
 builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
+builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>(client =>
+{
+    var goServiceUrl = builder.Configuration["GoServiceUrl"] ?? "http://localhost:8080/";
+    client.BaseAddress = new Uri(goServiceUrl);
+});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
