@@ -102,17 +102,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ISubscriptionJobService, SubscriptionJobService>();
 builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
-// builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>(client =>
-// {
-//     var goServiceUrl = builder.Configuration["GoServiceUrl"] ?? "http://localhost:8080/";
-//     client.BaseAddress = new Uri(goServiceUrl);
-// });
 builder.Services.AddGrpcClient<WalletApp.Protos.ExchangeRateService.ExchangeRateServiceClient>(options =>
 {
     var grpcUrl = builder.Configuration["GoGrpcServiceUrl"] ?? "http://localhost:50051";
     options.Address = new Uri(grpcUrl);
 });
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+builder.Services.AddScoped<ICryptoService, CryptoService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

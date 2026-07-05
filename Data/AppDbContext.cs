@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<TransactionTag> TransactionTags { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<CategoryRule> CategoryRules { get; set; }
+    public DbSet<CryptoHolding> CryptoHoldings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) // special options
     {
@@ -29,6 +30,11 @@ public class AppDbContext : DbContext
             .HasColumnType("xid")
             .IsRowVersion()
             .ValueGeneratedOnAddOrUpdate();
+        
+        // User can only have 1 row of the same coin
+        modelBuilder.Entity<CryptoHolding>()
+            .HasIndex(c => new { c.UserId, c.CoinCode })
+            .IsUnique();
 
         // Primary Key of TransactionTag is the unification of TrxId and TagId
         // Same tag cannot be added to a trx twice

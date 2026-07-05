@@ -6,6 +6,7 @@ option csharp_namespace = "WalletApp.Protos";
 
 service ExchangeRateService {
   rpc GetExchangeRate (RateRequest) returns (RateResponse);
+  rpc GetCryptoRate (CryptoRequest) returns (CryptoResponse);
 }
 
 message RateRequest {
@@ -18,4 +19,14 @@ message RateResponse {
   string date = 2;
   double rate = 3; 
   string source = 4;
+}
+
+message CryptoRequest {
+  string symbol = 1; 
+}
+
+message CryptoResponse {
+  string symbol = 1;
+  double price = 2;  
+  string source = 3; 
 }
