@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package rates;
+
+option csharp_namespace = "WalletApp.Protos";
+
+service ExchangeRateService {
+  rpc GetExchangeRate (RateRequest) returns (RateResponse);
+}
+
+message RateRequest {
+  string currency = 1;
+  string date = 2; 
+}
+
+message RateResponse {
+  string currency = 1;
+  string date = 2;
+  double rate = 3; 
+  string source = 4;
+}

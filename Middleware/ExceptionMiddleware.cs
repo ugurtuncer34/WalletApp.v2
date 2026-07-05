@@ -1,4 +1,5 @@
 using System.Net;
+using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using WalletApp.Dtos;
 
@@ -41,6 +42,7 @@ public class ExceptionMiddleware
             KeyNotFoundException => (int)HttpStatusCode.NotFound,
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
             DbUpdateConcurrencyException => (int)HttpStatusCode.Conflict, // optimistic lock
+            RpcException => (int)HttpStatusCode.ServiceUnavailable, // gRPC
             _ => (int)HttpStatusCode.InternalServerError
         };
 
