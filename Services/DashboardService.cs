@@ -12,18 +12,31 @@ public class DashboardService : IDashboardService
         _context = context;
     }
 
-    public async Task<DashboardResponse> GetMonthlyDashboardAsync(int year, int month)
+    public async Task<DashboardResponse> GetMonthlyDashboardAsync(int year, int month, Guid? userId = null, Guid? currencyId = null)
     {
         // Calculate the dates
         var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
         var endDate = startDate.AddMonths(1).AddSeconds(-1);
 
         // Take all transactions from that month into RAM
-        var monthTransactions = await _context.Transactions
+        var query = _context.Transactions
             .Include(t => t.Category)
                 .ThenInclude(c => c.ParentCategory)
             .Include(t => t.Merchant)
             .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate)
+            .AsQueryable();
+
+        if (userId.HasValue && userId.Value != Guid.Empty)
+        {
+            query = query.Where(t => t.UserId == userId.Value);
+        }
+
+        if (currencyId.HasValue && currencyId.Value != Guid.Empty)
+        {
+            query = query.Where(t => t.CurrencyId == currencyId.Value);
+        }
+
+        var monthTransactions = await query
             .OrderByDescending(t => t.TransactionDate)
             .ToListAsync();
 

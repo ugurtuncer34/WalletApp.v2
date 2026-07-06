@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WalletApp.Data;
 using WalletApp.Dtos;
 using WalletApp.Services;
 
@@ -19,12 +17,17 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<DashboardResponse>> GetDashboard([FromQuery] int? year, [FromQuery] int? month)
+    public async Task<ActionResult<DashboardResponse>> GetDashboard(
+        [FromQuery] int? year, 
+        [FromQuery] int? month,
+        [FromQuery] Guid? userId,
+        [FromQuery] Guid? currencyId
+    )
     {
         var targetYear = year ?? DateTime.UtcNow.Year;
         var targetMonth = month ?? DateTime.UtcNow.Month;
 
-        var dashboardData = await _dashboardService.GetMonthlyDashboardAsync(targetYear, targetMonth);
+        var dashboardData = await _dashboardService.GetMonthlyDashboardAsync(targetYear, targetMonth, userId, currencyId);
         return Ok(dashboardData);
     }
 }
