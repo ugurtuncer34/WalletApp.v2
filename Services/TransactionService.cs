@@ -455,4 +455,86 @@ public class TransactionService : ITransactionService
         _context.Transactions.Remove(transaction);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<int> CreateBulkTransactionsAsync(List<CreateTransactionRequest> requests)
+    {
+        if (requests == null || !requests.Any()) return 0;
+
+        var allCategories = await _masterDataService.GetCategoriesAsync();
+        var allMerchants = await _masterDataService.GetMerchantsAsync();
+        var allCountries = await _masterDataService.GetCountriesAsync();
+        var allCurrencies = await _masterDataService.GetCurrenciesAsync();
+
+        var defaultCategory = allCategories.FirstOrDefault(c => c.Name.Equals("OTHER", StringComparison.OrdinalIgnoreCase));
+        var defaultCountry = allCountries.FirstOrDefault(c => c.Code.Equals("TR", StringComparison.OrdinalIgnoreCase));
+        var defaultCurrency = allCurrencies.FirstOrDefault(c => c.Code.Equals("TRY", StringComparison.OrdinalIgnoreCase));
+
+        if (defaultCategory == null || defaultCountry == null || defaultCurrency == null)
+        {
+            throw new InvalidOperationException("Core default master data (OTHER, TR, TRY) is missing from the database.");
+        }
+
+        var transactionsToInsert = new List<Transaction>();
+        var exchangeRateTasks = new List<Task>();
+
+        foreach(var req in requests)
+        {
+            var targetCategoryId = req.CategoryId.HasValue && req.CategoryId != Guid.Empty
+                ? req.CategoryId.Value
+                : defaultCategory.Id;
+
+            Guid? targetMerchantId = req.MerchantId.HasValue && req.MerchantId != Guid.Empty
+                ? req.MerchantId.Value
+                : null;
+            
+            var targetCountryId = req.CountryId.HasValue && req.CountryId != Guid.Empty 
+                ? req.CountryId.Value 
+                : defaultCountry.Id;
+
+            var targetCurrencyId = req.CurrencyId.HasValue && req.CurrencyId != Guid.Empty 
+                ? req.CurrencyId.Value 
+                : defaultCurrency.Id;
+
+            var targetCurrencyCode = allCurrencies.FirstOrDefault(c => c.Id == targetCurrencyId)?.Code ?? "TRY";
+            var transactionDate = req.Date ?? DateTime.UtcNow;
+
+            var transaction = new Transaction
+            {
+                Id = Guid.NewGuid(),
+                TransactionDate = transactionDate,
+                Amount = req.Amount,
+                Description = req.Description,
+                CategoryId = targetCategoryId,
+                MerchantId = targetMerchantId,
+                CountryId = targetCountryId,
+                CurrencyId = targetCurrencyId,
+                UserId = _currentUserService.UserId
+            };
+
+            if(targetCurrencyCode.Equals("TRY", StringComparison.OrdinalIgnoreCase))
+            {
+                transaction.ExchangeRate = 1.0m; // skip gRPC call if the currency is already the base currency (TRY)
+            }
+            else
+            {
+                // resolve exchange rates asynchronously
+                var rateTask = _exchangeRateService.GetExchangeRateAsync(targetCurrencyCode, transactionDate)
+                    .ContinueWith(t => transaction.ExchangeRate = t.Result);
+                
+                exchangeRateTasks.Add(rateTask);
+            }
+
+            transactionsToInsert.Add(transaction);
+        }
+
+        if (exchangeRateTasks.Any()) // await all parallel gRPC calls simultaneously (if any exist)
+        {
+            await Task.WhenAll(exchangeRateTasks);
+        }
+
+        await _context.Transactions.AddRangeAsync(transactionsToInsert);
+        await _context.SaveChangesAsync();
+
+        return transactionsToInsert.Count;
+    }
 }

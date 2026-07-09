@@ -65,4 +65,23 @@ public class TransactionsController : ControllerBase
         await _transactionService.DeleteTransactionAsync(id);
         return NoContent();
     }
+
+    [HttpPost("bulk")]
+    [Idempotency]
+    public async Task<IActionResult> PostBulkTransactions([FromBody] List<CreateTransactionRequest> requests)
+    {
+        if (requests == null || !requests.Any())
+        {
+            return BadRequest(new { Message = "Transaction list cannot be empty." });
+        }
+
+        var insertedCount = await _transactionService.CreateBulkTransactionsAsync(requests);
+
+        return Ok( new
+        {
+            Success = true,
+            Message = $"{insertedCount} transactions successfully processed.",
+            Count = insertedCount
+        });
+    }
 }
