@@ -68,11 +68,21 @@ public class TransactionService : ITransactionService
 
         if (queryParams.StartDate.HasValue)
         {
+            var start = queryParams.StartDate.Value;
+            queryParams.StartDate = start.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(start, DateTimeKind.Utc)
+                : start.ToUniversalTime();
+
             query = query.Where(t => t.TransactionDate >= queryParams.StartDate.Value);
         }
 
         if (queryParams.EndDate.HasValue)
         {
+            var end = queryParams.EndDate.Value;
+            queryParams.EndDate = end.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(end, DateTimeKind.Utc) 
+                : end.ToUniversalTime();
+                
             query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value.AddDays(1));
         }
 
@@ -465,7 +475,7 @@ public class TransactionService : ITransactionService
         var allCountries = await _masterDataService.GetCountriesAsync();
         var allCurrencies = await _masterDataService.GetCurrenciesAsync();
 
-        var defaultCategory = allCategories.FirstOrDefault(c => c.Name.Equals("OTHER", StringComparison.OrdinalIgnoreCase));
+        var defaultCategory = allCategories.FirstOrDefault(c => c.Name.Equals("DİĞER", StringComparison.OrdinalIgnoreCase));
         var defaultCountry = allCountries.FirstOrDefault(c => c.Code.Equals("TR", StringComparison.OrdinalIgnoreCase));
         var defaultCurrency = allCurrencies.FirstOrDefault(c => c.Code.Equals("TRY", StringComparison.OrdinalIgnoreCase));
 
