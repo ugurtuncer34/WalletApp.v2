@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.AspNetCore.Http;
 using System.Data;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -19,6 +19,7 @@ public class TransactionService : ITransactionService
     private readonly IExchangeRateService _exchangeRateService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
 
     public TransactionService(
@@ -27,7 +28,8 @@ public class TransactionService : ITransactionService
         ICurrentUserService currentUserService,
         IExchangeRateService exchangeRateService,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor
     )
     {
         _context = context;
@@ -36,6 +38,7 @@ public class TransactionService : ITransactionService
         _exchangeRateService = exchangeRateService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
@@ -582,9 +585,16 @@ public class TransactionService : ITransactionService
             defaultCategoryName = m.DefaultCategory?.Name
         }));
 
+        // cacth Correlation ID from HTTP Context
+        var correlationId = _httpContextAccessor.HttpContext?.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? Guid.NewGuid().ToString(); // fallback
+
         // python request prep.
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Add("X-API-Key", nlpApiSecret);
+
+        // paste Correlation ID to header
+        client.DefaultRequestHeaders.Add("X-Correlation-ID", correlationId);
 
         using var content = new MultipartFormDataContent();
 
