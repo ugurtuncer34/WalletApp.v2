@@ -557,7 +557,6 @@ public class TransactionService : ITransactionService
 
     public async Task<string> ParseStatementAsync(IFormFile file)
     {
-        // 1. Dosya Validasyonları
         if (file == null || file.Length == 0)
             throw new ArgumentException("No file was uploaded.");
 
