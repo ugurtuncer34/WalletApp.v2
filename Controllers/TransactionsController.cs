@@ -84,4 +84,12 @@ public class TransactionsController : ControllerBase
             Count = insertedCount
         });
     }
+
+    [HttpPost("parse-statement")]
+    [Idempotency]
+    public async Task<IActionResult> ParseStatementProxy(IFormFile file)
+    {
+        var result = await _transactionService.ParseStatementAsync(file);
+        return Content(result, "application/json");
+    }
 }

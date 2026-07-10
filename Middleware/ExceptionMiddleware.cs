@@ -43,6 +43,7 @@ public class ExceptionMiddleware
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
             DbUpdateConcurrencyException => (int)HttpStatusCode.Conflict, // optimistic lock
             RpcException => (int)HttpStatusCode.ServiceUnavailable, // gRPC
+            HttpRequestException => (int)HttpStatusCode.BadGateway,
             _ => (int)HttpStatusCode.InternalServerError
         };
 

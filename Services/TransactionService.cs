@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Data;
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using WalletApp.Data;
@@ -16,19 +17,25 @@ public class TransactionService : ITransactionService
     private readonly IMasterDataService _masterDataService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IExchangeRateService _exchangeRateService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly CultureInfo _trCulture = new CultureInfo("tr-TR");
 
     public TransactionService(
         AppDbContext context, 
         IMasterDataService masterDataService, 
         ICurrentUserService currentUserService,
-        IExchangeRateService exchangeRateService
+        IExchangeRateService exchangeRateService,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration
     )
     {
         _context = context;
         _masterDataService = masterDataService;
         _currentUserService = currentUserService;
         _exchangeRateService = exchangeRateService;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public async Task<PagedResult<TransactionResponse>> GetTransactionsAsync(TransactionQueryParameters queryParams)
@@ -82,7 +89,7 @@ public class TransactionService : ITransactionService
             queryParams.EndDate = end.Kind == DateTimeKind.Unspecified 
                 ? DateTime.SpecifyKind(end, DateTimeKind.Utc) 
                 : end.ToUniversalTime();
-                
+
             query = query.Where(t => t.TransactionDate < queryParams.EndDate.Value.AddDays(1));
         }
 
@@ -546,5 +553,56 @@ public class TransactionService : ITransactionService
         await _context.SaveChangesAsync();
 
         return transactionsToInsert.Count;
+    }
+
+    public async Task<string> ParseStatementAsync(IFormFile file)
+    {
+        // 1. Dosya Validasyonları
+        if (file == null || file.Length == 0)
+            throw new ArgumentException("No file was uploaded.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            throw new ArgumentException("File size exceeds the strict 5MB limit.");
+
+        if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Invalid file type. Only native PDF documents are permitted.");
+
+        var nlpServiceUrl = _configuration["NLP_SERVICE_URL"]; 
+        var nlpApiSecret = _configuration["NLP_API_SECRET"];
+
+        if (string.IsNullOrEmpty(nlpServiceUrl) || string.IsNullOrEmpty(nlpApiSecret))
+            throw new InvalidOperationException("Internal NLP service routing configurations are missing.");
+
+        // from cache
+        var allCategories = await _masterDataService.GetCategoriesAsync();
+        var allMerchants = await _masterDataService.GetMerchantsAsync();
+
+        var categoriesJson = JsonSerializer.Serialize(allCategories.Where(c => c.ParentCategory != null).Select(c => c.Name));
+        var merchantsJson = JsonSerializer.Serialize(allMerchants.Select(m => new {
+            name = m.Name,
+            defaultCategoryName = m.DefaultCategory?.Name
+        }));
+
+        // python request prep.
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", nlpApiSecret);
+
+        using var content = new MultipartFormDataContent();
+
+        using var fileStream = file.OpenReadStream();
+        var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", file.FileName);
+        
+        content.Add(new StringContent(categoriesJson), "categories");
+        content.Add(new StringContent(merchantsJson), "merchants");
+
+        var response = await client.PostAsync(nlpServiceUrl, content);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"NLP Microservice execution failed. Details: {responseBody}");
+
+        return responseBody;
     }
 }
