@@ -9,6 +9,8 @@ using Microsoft.OpenApi;
 using Serilog;
 using Hangfire;
 using Hangfire.PostgreSql;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using WalletApp.Data;
 using WalletApp.Middleware;
 using WalletApp.Services;
@@ -88,6 +90,28 @@ builder.Services.AddHangfire(config => config
 
 // Start Hangfire server
 builder.Services.AddHangfireServer();
+
+// OPENTELEMETRY Tracing
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracerProviderBuilder =>
+    {
+        tracerProviderBuilder
+            // service name to appear on Grafana/Jaeger
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("FamilyFinance.Backend"))
+            
+            // tracing places
+            .AddAspNetCoreInstrumentation() // HTTP requests
+            .AddHttpClientInstrumentation() // Python HTTP requests
+            .AddGrpcClientInstrumentation() // Go gRPC calls
+            .AddEntityFrameworkCoreInstrumentation()
+            
+            // place to send data (future Jaeger address)
+            .AddOtlpExporter(opts => 
+            {
+                // Coolify OTLP_ENDPOINT, if not present, use default Jaeger port
+                opts.Endpoint = new Uri(builder.Configuration["OTLP_ENDPOINT"] ?? "http://localhost:4317");
+            });
+    });
 
 builder.Services.AddControllers()
     .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
