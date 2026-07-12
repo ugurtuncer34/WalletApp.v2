@@ -33,7 +33,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 { "AllowRegistration", "true" },
-                { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() } // hangfire
+                { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() }, // hangfire
+                { "Jwt:Secret", "ThisIsADummySecretKeyForTestingPurposesOnlyDoNotUseInProd12345!" }
             });
         });
 
