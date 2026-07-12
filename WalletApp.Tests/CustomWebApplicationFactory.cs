@@ -34,7 +34,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             {
                 { "AllowRegistration", "true" },
                 { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() }, // hangfire
-                { "Jwt:Secret", "ThisIsADummySecretKeyForTestingPurposesOnlyDoNotUseInProd12345!" }
+                { "Jwt:Secret", "ThisIsASuperLongAndSecureDummySecretKeyForTestingYourJWTSigning123!" }
             });
         });
 
