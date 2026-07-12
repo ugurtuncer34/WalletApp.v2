@@ -32,7 +32,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                { "AllowRegistration", "true" }
+                { "AllowRegistration", "true" },
+                { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() } // hangfire
             });
         });
         
