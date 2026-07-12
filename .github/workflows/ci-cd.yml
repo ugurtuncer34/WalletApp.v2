@@ -1,0 +1,33 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 2. Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: 3. Restore Dependencies
+      # Restore packages directly via the test project file
+      run: dotnet restore WalletApp.Tests/WalletApp.Tests.csproj
+
+    - name: 4. Run Integration and E2E Tests
+      # Testcontainers will automatically leverage the Docker instance available on the GitHub runner
+      run: dotnet test WalletApp.Tests/WalletApp.Tests.csproj --no-restore --verbosity normal
+
+    - name: 5. Trigger Coolify Deployment
+      # This step executes strictly if all tests from the previous step pass
+      if: success() 
+      run: |
+        curl -X POST "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
+        -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
