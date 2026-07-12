@@ -39,5 +39,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="WalletApp.Tests\**" />
+    <EmbeddedResource Remove="WalletApp.Tests\**" />
+    <None Remove="WalletApp.Tests\**" />
+  </ItemGroup>
 
 </Project>
