@@ -37,7 +37,12 @@ public class UserJourneyE2ETests : IClassFixture<CustomWebApplicationFactory>
         // Register & Login
         var registerReq = new UserLoginRequest { Username = "e2e_user", Password = "e2e_password!" };
         var registerRes = await _client.PostAsJsonAsync("/api/Auth/register", registerReq);
-        registerRes.IsSuccessStatusCode.Should().BeTrue("User registration should be successful.");
+        // Log the actual error response if registration fails
+        if (!registerRes.IsSuccessStatusCode)
+        {
+            var errorContent = await registerRes.Content.ReadAsStringAsync();
+            throw new Exception($"Registration failed with status {registerRes.StatusCode}: {errorContent}");
+        }
 
         var authData = await registerRes.Content.ReadFromJsonAsync<AuthResponse>();
         authData.Should().NotBeNull();
@@ -63,7 +68,7 @@ public class UserJourneyE2ETests : IClassFixture<CustomWebApplicationFactory>
 
         var dashboardData = await dashboardRes.Content.ReadFromJsonAsync<DashboardResponse>();
         dashboardData.Should().NotBeNull();
-        
+
         // The core of the wallet: The 500 amount we added must be reflected on the Dashboard!
         dashboardData!.TotalMonthlyExpense.Should().Be(500m);
     }
