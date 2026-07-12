@@ -36,13 +36,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
                 { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() } // hangfire
             });
         });
-        
+
         builder.ConfigureServices(services =>
         {
             // delete original db from services
             var descriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            
+
             if (descriptor != null)
             {
                 services.Remove(descriptor);
@@ -61,9 +61,12 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         });
     }
 
-    // after tests complete, stop the container and remove
+    // Stop and dispose of the application and Docker container AFTER the tests finish
     public new async Task DisposeAsync()
     {
+        // Gracefully shut down the ASP.NET Core host and Hangfire background server FIRST
+        await base.DisposeAsync();
+        // Safely destroy the PostgreSQL container AFTER all connections are closed
         await _dbContainer.DisposeAsync();
     }
 }
