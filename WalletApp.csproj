@@ -43,6 +43,9 @@
     <Compile Remove="WalletApp.Tests\**" />
     <EmbeddedResource Remove="WalletApp.Tests\**" />
     <None Remove="WalletApp.Tests\**" />
+
+    <Content Remove="Logs\**" />
+    <None Remove="Logs\**" />
   </ItemGroup>
 
 </Project>

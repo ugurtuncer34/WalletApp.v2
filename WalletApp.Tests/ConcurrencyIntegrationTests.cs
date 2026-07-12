@@ -26,9 +26,7 @@ public class ConcurrencyIntegrationTests : IClassFixture<CustomWebApplicationFac
         var userId = Guid.NewGuid();
         setupDb.Users.Add(new User 
         { 
-            Id = userId, 
-            PasswordHash = "dummy_hash", 
-            CreatedAt = DateTime.UtcNow 
+            Id = userId, Username = "testuser", PasswordHash = "hash", Role = "User", CreatedAt = DateTime.UtcNow 
         });
 
         // Create a dummy Category
