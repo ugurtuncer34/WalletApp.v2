@@ -27,14 +27,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     // when app is starting, overwrite settings
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Enable registration for E2E tests
+        // Enable registration for E2E tests, force Testcontainers DB, and fix JWT key length
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 { "AllowRegistration", "true" },
                 { "ConnectionStrings:DefaultConnection", _dbContainer.GetConnectionString() }, // hangfire
-                { "Jwt:Secret", "ThisIsASuperLongAndSecureDummySecretKeyForTestingYourJWTSigning123!" }
+                { "JwtSettings:SecretKey", "ThisIsASuperLongAndSecureDummySecretKeyForTestingYourJWTSigning123!" } // FIXED KEY NAME
             });
         });
 
