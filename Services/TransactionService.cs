@@ -389,9 +389,10 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionResponse> UpdateTransactionAsync(Guid id, UpdateTransactionRequest request)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == _currentUserService.UserId);
         if (transaction is null) 
-            throw new KeyNotFoundException($"Transaction not found. ID: {id}");
+            throw new KeyNotFoundException($"Transaction not found or does not belong to your user. Trx ID: {id}");
 
         var allCategories = await _masterDataService.GetCategoriesAsync();
         var allMerchants = await _masterDataService.GetMerchantsAsync();
