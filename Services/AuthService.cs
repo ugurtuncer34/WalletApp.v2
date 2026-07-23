@@ -56,8 +56,13 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(UserLoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == request.Username.ToLower());
-        if(user is null) throw new ArgumentException("Wrong Username or Password.");
+        var user = await _context.Users.
+            FirstOrDefaultAsync(u => 
+                u.Username.ToLower() == request.Username.ToLower() 
+                    && u.IsActive);
+                    
+        if(user is null) 
+            throw new ArgumentException("Wrong Username or Password.");
 
         bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
         if(!isPasswordValid) throw new ArgumentException("Wrong Username or Password.");
@@ -74,6 +79,7 @@ public class AuthService : IAuthService
     public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
     {
         return await _context.Users
+            .Where(u => u.IsActive)
             .Select(u => new UserResponse
             {
                 Id = u.Id,

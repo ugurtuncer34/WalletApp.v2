@@ -30,7 +30,7 @@ public class AppDbContext : DbContext
             .HasColumnType("xid")
             .IsRowVersion()
             .ValueGeneratedOnAddOrUpdate();
-        
+
         // User can only have 1 row of the same coin
         modelBuilder.Entity<CryptoHolding>()
             .HasIndex(c => new { c.UserId, c.CoinCode })
@@ -56,5 +56,23 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Currency>()
             .HasIndex(c => c.Code)
             .IsUnique();
+
+        modelBuilder.Entity<Transaction>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RecurringTransaction>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CryptoHolding>()
+            .HasOne(c => c.User)
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
