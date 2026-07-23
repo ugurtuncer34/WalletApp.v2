@@ -14,6 +14,7 @@ using OpenTelemetry.Trace;
 using WalletApp.Data;
 using WalletApp.Middleware;
 using WalletApp.Services;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,20 +62,46 @@ builder.Services.AddAuthentication(options =>
         {
             OnTokenValidated = async context =>
             {
-                var cache = context.HttpContext.RequestServices.GetRequiredService<IDistributedCache>();
-                
-                // Take JTI from token
-                var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-                
+                var services = context.HttpContext.RequestServices;
+
+                var cache = services.GetRequiredService<IDistributedCache>();
+
+                // 1. Check whether this exact token was revoked
+                var jti = context.Principal?
+                    .FindFirst(JwtRegisteredClaimNames.Jti)?
+                    .Value;
+
                 if (!string.IsNullOrEmpty(jti))
                 {
-                    // Check cache for JTI
                     var isBlacklisted = await cache.GetStringAsync($"blacklist_{jti}");
+
                     if (!string.IsNullOrEmpty(isBlacklisted))
                     {
-                        // If blacklisted, unvalidate token and cancel request
                         context.Fail("Login required.");
+                        return;
                     }
+                }
+
+                // 2. Check whether the user still exists and is active
+                var userIdValue =
+                    context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+                if (!Guid.TryParse(userIdValue, out var userId))
+                {
+                    context.Fail("Invalid user identity.");
+                    return;
+                }
+
+                var dbContext = services.GetRequiredService<AppDbContext>();
+
+                var isActiveUser = await dbContext.Users
+                    .AsNoTracking()
+                    .AnyAsync(user => user.Id == userId && user.IsActive);
+
+                if (!isActiveUser)
+                {
+                    context.Fail("Login required.");
                 }
             }
         };
@@ -85,7 +112,7 @@ builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(c => 
+    .UsePostgreSqlStorage(c =>
         c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
 // Start Hangfire server
@@ -98,15 +125,15 @@ builder.Services.AddOpenTelemetry()
         tracerProviderBuilder
             // service name to appear on Grafana/Jaeger
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("FamilyFinance.Backend"))
-            
+
             // tracing places
             .AddAspNetCoreInstrumentation() // HTTP requests
             .AddHttpClientInstrumentation() // Python HTTP requests
             .AddGrpcClientInstrumentation() // Go gRPC calls
             .AddEntityFrameworkCoreInstrumentation()
-            
+
             // place to send data (future Jaeger address)
-            .AddOtlpExporter(opts => 
+            .AddOtlpExporter(opts =>
             {
                 // Coolify OTLP_ENDPOINT, if not present, use default Jaeger port
                 opts.Endpoint = new Uri(builder.Configuration["OTLP_ENDPOINT"] ?? "http://localhost:4317");
@@ -157,7 +184,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Cors
-var corsOrigins = builder.Configuration["AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries) 
+var corsOrigins = builder.Configuration["AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries)
     ?? ["http://localhost:3000", "http://localhost:5173"];
 
 builder.Services.AddCors(options =>
