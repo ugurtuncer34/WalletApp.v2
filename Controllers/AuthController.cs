@@ -73,7 +73,7 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid user token.");
         }
 
-        await _authService.DeleteUserAsync(userId, jtiClaim!);
+        await _authService.DeactivateUserAsync(userId, jtiClaim!);
         return NoContent();
     }
 }

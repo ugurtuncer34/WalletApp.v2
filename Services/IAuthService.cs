@@ -8,5 +8,5 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(UserLoginRequest request);
     Task<IEnumerable<UserResponse>> GetAllUsersAsync();
     Task ChangePasswordAsync(Guid id, ChangePasswordRequest request, string currentJti);
-    Task DeleteUserAsync(Guid id, string currentJti);
+    Task DeactivateUserAsync(Guid id, string currentJti);
 }

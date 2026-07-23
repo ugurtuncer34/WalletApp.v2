@@ -100,14 +100,14 @@ public class AuthService : IAuthService
         await InvalidateTokenAsync(currentJti);
     }
 
-    public async Task DeleteUserAsync(Guid userId, string currentJti)
+    public async Task DeactivateUserAsync(Guid userId, string currentJti)
     {
         var user = await _context.Users.FindAsync(userId);
         if(user is null) throw new KeyNotFoundException("User not found");
 
-        _context.Users.Remove(user);
+        user.IsActive = false;
+        
         await _context.SaveChangesAsync();
-
         await InvalidateTokenAsync(currentJti);
     }
 
